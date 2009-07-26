@@ -1,6 +1,5 @@
 require 'rubygems'
 require 'mechanize'
-require 'rubyforge'
 require 'appscript'
 
 ##
