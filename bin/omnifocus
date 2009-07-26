@@ -1,6 +1,6 @@
 #!/usr/bin/ruby -w
 
 require 'rubygems'
-require 'rf2of'
+require 'omnifocus'
 
-Rf2of.new.go
+OmniFocus.run

@@ -3,6 +3,6 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
-bin/rf2of
-lib/rf2of.rb
-test/test_rf2of.rb
+bin/omnifocus
+lib/omnifocus.rb
+lib/omnifocus/rubyforge.rb

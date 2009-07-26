@@ -1,32 +1,41 @@
-= rf2of
+= omnifocus
 
-* FIX (url)
+* http://rubyforge.org/projects/seattlerb
 
 == DESCRIPTION:
 
-FIX (describe your package)
+Synchronizes bug tracking systems to omnifocus.
 
 == FEATURES/PROBLEMS:
 
-* FIX (list of features or problems)
+* Pluggable to work with multiple bug tracking systems (BTS).
+* Rubyforge plugin included.
+* Creates projects in omnifocus if needed.
+* Creates tasks for multiple projects in omnifocus.
+* Marks tasks complete if they've been closed in the BTS.
 
 == SYNOPSIS:
 
-  FIX (code sample of usage)
+    % omnifocus
+    scanning ticket RF#3802
+    removing parsetree # 314159
+    creating parsetree # 3802
+    ...
 
 == REQUIREMENTS:
 
-* FIX (list of requirements)
+* mechanize
+* rb-appscript
 
 == INSTALL:
 
-* FIX (sudo gem install, anything else)
+* sudo gem install omnifocus
 
 == LICENSE:
 
 (The MIT License)
 
-Copyright (c) 2009 Ryan Davis, seattle.rb
+Copyright (c) Ryan Davis, seattle.rb
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
