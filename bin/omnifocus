@@ -1,0 +1,6 @@
+#!/usr/bin/ruby -w
+
+require 'rubygems'
+require 'rf2of'
+
+Rf2of.new.go
