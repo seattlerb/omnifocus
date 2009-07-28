@@ -4,22 +4,30 @@ require 'appscript'
 
 ##
 # Synchronizes bug tracking systems to omnifocus.
+#
+# Some definitions:
+#
+# bts: bug tracking system
+# SYSTEM: a tag uniquely identifying the bts
+# bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '1.0.0'
+  VERSION = '1.1.0'
 
+  ##
   # bug_db = {
   #   project => {
-  #     rf_id => [task_name, url], # only on BTS     = add to OF
-  #     rf_id => true,             # both BTS and OF = don't touch
-  #     rf_id => false,            # only on OF      = remove from OF
+  #     bts_id => [task_name, url], # only on BTS     = add to OF
+  #     bts_id => true,             # both BTS and OF = don't touch
+  #     bts_id => false,            # only on OF      = remove from OF
   #   }
   # }
 
   attr_reader :bug_db
 
+  ##
   # existing = {
-  #   rf_id => project,
+  #   bts_id => project,
   # }
 
   attr_reader :existing
@@ -28,8 +36,12 @@ class OmniFocus
   # Load any file matching "omnifocus/*.rb"
 
   def self.load_plugins
+    loaded = {}
     Gem.find_files("omnifocus/*.rb").each do |path|
+      name = File.basename path
+      next if loaded[name]
       require path
+      loaded[name] = true
     end
   end
 
@@ -64,12 +76,12 @@ class OmniFocus
 
   ##
   # Walk all omnifocus tasks under the nerd folder and add them to the
-  # bug_db hash if they have [A-Z]+#\d+ in the subject.
+  # bug_db hash if they match a bts_id.
 
   def prepopulate_existing_tasks
     of_tasks = nerd_projects.projects.tasks[its.name.contains("#")].get.flatten
     of_tasks.each do |of_task|
-      ticket_id                  = of_task.name.get[/^[A-Z]+#(\d+)/, 1].to_i
+      ticket_id = of_task.name.get[/^([A-Z]+(?:-[\w-]+)?\#\d+)/, 1]
       project                    = of_task.containing_project.name.get
       existing[ticket_id]        = project
       bug_db[project][ticket_id] = false
@@ -89,6 +101,8 @@ class OmniFocus
 
   def create_missing_projects
     (bug_db.keys - nerd_projects.projects.name.get).each do |name|
+      warn "creating project #{name}"
+      next if $DEBUG
       nerd_projects.make :new => :project, :with_properties => { :name => name }
     end
   end
@@ -107,13 +121,15 @@ class OmniFocus
         when true
           # leave alone
         when false
-          project.tasks[its.name.contains("##{bts_id}")].get.each do |task|
+          project.tasks[its.name.contains(bts_id)].get.each do |task|
             next if task.completed.get
             puts "Removing #{name} # #{bts_id}"
+            next if $DEBUG
             task.completed.set true
           end
         when Array
           puts "Adding #{name} # #{bts_id}"
+          next if $DEBUG
           title, url = *value
           project.make(:new => :task,
                        :with_properties => {
@@ -135,20 +151,26 @@ class OmniFocus
   end
 
   def run
+    # do this all up front so we can REALLY fuck shit up with plugins
+    self.class.plugins.each do |plugin|
+      extend plugin
+    end
+
     prepopulate_existing_tasks
 
     self.class.plugins.each do |plugin|
-      extend plugin
       name = plugin.name.split(/::/).last.downcase
+      warn "scanning #{name}"
       send "populate_#{name}_tasks"
     end
 
     if $DEBUG then
       require 'pp'
+      pp existing
       pp bug_db
-    else
-      create_missing_projects
-      update_tasks
     end
+
+    create_missing_projects
+    update_tasks
   end
 end
