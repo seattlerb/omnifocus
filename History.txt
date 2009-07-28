@@ -1,3 +1,15 @@
+=== 1.1.0 / 2009-07-28
+
+* 3 minor enhancements:
+
+  * Changed bts_id to match /SYSTEM(-project)?#id/ to work with PITA BTSen.
+  * Debug mode prints pseudo-actions as well as dumping its knowledge db.
+  * run method now extends with plugins before hitting the backend.
+
+* 1 bug fix:
+
+  * Fixed load_plugins from loading both gem and local plugins.
+
 === 1.0.0 / 2009-07-26
 
 * 1 major enhancement
