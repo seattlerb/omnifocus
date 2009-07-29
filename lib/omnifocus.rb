@@ -12,7 +12,7 @@ require 'appscript'
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '1.1.0'
+  VERSION = '1.2.0'
 
   ##
   # bug_db = {
@@ -62,13 +62,64 @@ class OmniFocus
     Appscript.its
   end
 
+  def omnifocus
+    unless defined? @omnifocus then
+      @omnifocus = Appscript.app('OmniFocus').documents[1]
+    end
+    @omnifocus
+  end
+
+  def all_folders
+    queue = omnifocus.folders.get
+    folders = []
+
+    until queue.empty? do
+      folder = queue.shift
+      folders << folder
+      subfolders = folder.folders.get
+      queue.push(*subfolders)
+    end
+
+    folders
+  end
+
+  def all_projects
+    all_folders.map { |folder| folder.projects }
+  end
+
+  def all_tasks
+    queue = all_projects.map { |project| project.tasks.get }.flatten
+    tasks = []
+
+    until queue.empty? do
+      task = queue.shift
+      tasks << task
+      subtasks = task.tasks.get
+      queue.push(*subtasks)
+    end
+
+    tasks
+  end
+
+  ##
+  # Utility shortcut to make a new thing with a name via appscript.
+
+  def make target, type, name, extra = {}
+    target.make :new => type, :with_properties => { :name => name }.merge(extra)
+  end
+
   ##
   # Get all projects under the nerd folder
 
   def nerd_projects
     unless defined? @nerd_projects then
-      omnifocus      = Appscript.app('OmniFocus').documents[1]
-      @nerd_projects = omnifocus.sections[its.name.eq("nerd")].first
+      @nerd_projects = omnifocus.folders["nerd"]
+
+      begin
+        @nerd_projects.get
+      rescue
+        make omnifocus, :folder, "nerd"
+      end
     end
 
     @nerd_projects
@@ -79,7 +130,10 @@ class OmniFocus
   # bug_db hash if they match a bts_id.
 
   def prepopulate_existing_tasks
-    of_tasks = nerd_projects.projects.tasks[its.name.contains("#")].get.flatten
+    of_tasks = all_tasks.find_all { |task|
+      task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
+    }
+
     of_tasks.each do |of_task|
       ticket_id = of_task.name.get[/^([A-Z]+(?:-[\w-]+)?\#\d+)/, 1]
       project                    = of_task.containing_project.name.get
@@ -103,7 +157,7 @@ class OmniFocus
     (bug_db.keys - nerd_projects.projects.name.get).each do |name|
       warn "creating project #{name}"
       next if $DEBUG
-      nerd_projects.make :new => :project, :with_properties => { :name => name }
+      make nerd_projects, :project, name
     end
   end
 
@@ -114,7 +168,7 @@ class OmniFocus
 
   def update_tasks
     bug_db.each do |name, tickets|
-      project = nerd_projects.projects[its.name.eq(name)].projects[1]
+      project = nerd_projects.projects[name]
 
       tickets.each do |bts_id, value|
         case value
@@ -131,11 +185,7 @@ class OmniFocus
           puts "Adding #{name} # #{bts_id}"
           next if $DEBUG
           title, url = *value
-          project.make(:new => :task,
-                       :with_properties => {
-                         :note => url,
-                         :name => title,
-                       })
+          make project, :task, title, :note => url
         else
           abort "ERROR: Unknown value in bug_db #{bts_id}: #{value.inspect}"
         end

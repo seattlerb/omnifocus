@@ -4,4 +4,5 @@ Manifest.txt
 README.txt
 Rakefile
 bin/omnifocus
+bin/omnifocus_new
 lib/omnifocus.rb
