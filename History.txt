@@ -1,3 +1,12 @@
+=== 1.2.0 / 2009-07-30
+
+* 3 minor enhancements:
+
+  * Added omnifocus_new so I can create tasks via shell. yay!
+  * Cleaned up a fair amount of appscript calls, mostly negated by changes for OF's model.
+  * Figured out the necessary appscript to navigate OmniFocus' byzantine hierarchical object model.
+    * adding methods: all_{tasks,folders,projects}
+
 === 1.1.0 / 2009-07-28
 
 * 3 minor enhancements:
