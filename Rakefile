@@ -12,6 +12,8 @@ Hoe.spec 'omnifocus' do
   extra_deps << 'mechanize'
 
   self.rubyforge_name = 'seattlerb'
+
+  pluggable!
 end
 
 # vim: syntax=ruby
