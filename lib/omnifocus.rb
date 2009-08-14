@@ -12,7 +12,7 @@ require 'appscript'
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '1.2.0'
+  VERSION = '1.2.1'
 
   ##
   # bug_db = {

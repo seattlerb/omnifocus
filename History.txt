@@ -1,3 +1,9 @@
+=== 1.2.1 / 2009-08-14
+
+* 1 bug fix:
+
+  * Rakefile should have declared pluggable!
+
 === 1.2.0 / 2009-07-30
 
 * 3 minor enhancements:
