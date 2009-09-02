@@ -173,7 +173,13 @@ class OmniFocus
       tickets.each do |bts_id, value|
         case value
         when true
-          # leave alone
+          project.tasks[its.name.contains(bts_id)].get.each do |task|
+            if task.completed.get
+              puts "Re-opening #{name} # #{bts_id}"
+              next if $DEBUG
+              task.completed.set false
+            end
+          end
         when false
           project.tasks[its.name.contains(bts_id)].get.each do |task|
             next if task.completed.get
