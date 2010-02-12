@@ -146,7 +146,7 @@ class OmniFocus
   # Returns the mechanize agent
 
   def mechanize
-    @mechanize ||= WWW::Mechanize.new
+    @mechanize ||= Mechanize.new
   end
 
   ##
