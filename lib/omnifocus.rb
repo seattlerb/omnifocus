@@ -69,18 +69,23 @@ class OmniFocus
     @omnifocus
   end
 
-  def all_folders
-    queue = omnifocus.folders.get
-    folders = []
+  def walk_queue_deep queue, msg
+    result = []
 
     until queue.empty? do
-      folder = queue.shift
-      folders << folder
-      subfolders = folder.folders.get
-      queue.push(*subfolders)
+      item = queue.shift
+      result << item
+      subitems = item.send(msg).get
+      queue.push(*subitems)
     end
 
-    folders
+    result
+  end
+
+  def all_folders
+    queue = omnifocus.folders.get
+
+    walk_queue_deep queue, :folders
   end
 
   def all_projects
@@ -89,16 +94,8 @@ class OmniFocus
 
   def all_tasks
     queue = all_projects.map { |project| project.tasks.get }.flatten
-    tasks = []
 
-    until queue.empty? do
-      task = queue.shift
-      tasks << task
-      subtasks = task.tasks.get
-      queue.push(*subtasks)
-    end
-
-    tasks
+    walk_queue_deep queue, :tasks
   end
 
   ##
