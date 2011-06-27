@@ -1,6 +1,7 @@
 = omnifocus
 
-* http://rubyforge.org/projects/seattlerb
+home :: https://github.com/seattlerb/omnifocus
+rdoc :: http://seattlerb.rubyforge.org/omnifocus
 
 == DESCRIPTION:
 
@@ -9,7 +10,6 @@ Synchronizes bug tracking systems to omnifocus.
 == FEATURES/PROBLEMS:
 
 * Pluggable to work with multiple bug tracking systems (BTS).
-* Rubyforge plugin included.
 * Creates projects in omnifocus if needed.
 * Creates tasks for multiple projects in omnifocus.
 * Marks tasks complete if they've been closed in the BTS.
