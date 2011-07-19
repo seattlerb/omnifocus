@@ -36,10 +36,12 @@ class OmniFocus
   # Load any file matching "omnifocus/*.rb"
 
   def self.load_plugins
+    filter = ARGV.shift
     loaded = {}
     Gem.find_files("omnifocus/*.rb").each do |path|
       name = File.basename path
       next if loaded[name]
+      next unless path.index filter if filter
       require path
       loaded[name] = true
     end
@@ -127,9 +129,20 @@ class OmniFocus
   # bug_db hash if they match a bts_id.
 
   def prepopulate_existing_tasks
-    of_tasks = all_tasks.find_all { |task|
-      task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
-    }
+    prefixen = self.class.plugins.map { |klass| klass::PREFIX rescue nil }
+
+    of_tasks =
+      if prefixen.all? then
+        all_tasks.find_all { |task|
+        task.name.get =~ /^(#{Regexp.union prefixen}(?:-[\w-]+)?\#\d+)/
+      }
+      else
+        warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
+
+        all_tasks.find_all { |task|
+        task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
+      }
+      end
 
     of_tasks.each do |of_task|
       ticket_id = of_task.name.get[/^([A-Z]+(?:-[\w-]+)?\#\d+)/, 1]
