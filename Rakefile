@@ -4,6 +4,7 @@ require 'rubygems'
 require 'hoe'
 
 Hoe.plugin :seattlerb
+Hoe.plugin :isolate
 
 Hoe.spec "omnifocus" do
   developer "aja", "kushali@rubyforge.org"
