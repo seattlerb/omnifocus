@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'mechanize'
 require 'appscript'
 
 ##
@@ -134,7 +133,7 @@ class OmniFocus
     of_tasks =
       if prefixen.all? then
         all_tasks.find_all { |task|
-        task.name.get =~ /^(#{Regexp.union prefixen}(?:-[\w-]+)?\#\d+)/
+        task.name.get =~ /^(#{Regexp.union prefixen}(?:-[\w.-]+)?\#\d+)/
       }
       else
         warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
@@ -156,6 +155,7 @@ class OmniFocus
   # Returns the mechanize agent
 
   def mechanize
+    require 'mechanize'
     @mechanize ||= Mechanize.new
   end
 
