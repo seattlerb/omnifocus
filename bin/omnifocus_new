@@ -7,11 +7,16 @@ require 'appscript'
 project_name = ARGV.shift
 title = ($stdin.tty? ? ARGV.join(" ") : $stdin.read).strip
 
-abort "need project and title" unless project_name && ! title.empty?
-
 include Appscript
 
 omnifocus = app('OmniFocus').documents[1]
+
+unless project_name && ! title.empty? then
+  cmd = File.basename $0
+  projects = omnifocus.sections.projects.name.get.flatten.sort
+
+  abort "usage: #{cmd} project title\n\nprojects = #{projects.join ", "}"
+end
 
 projects = omnifocus.sections.projects[its.name.eq(project_name)]
 project = projects.get.flatten.grep(Appscript::Reference).first
