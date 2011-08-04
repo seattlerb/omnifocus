@@ -1,6 +1,19 @@
 require 'rubygems'
 require 'appscript'
 
+class Appscript::Reference # :nodoc:
+  # HACK: There is apparently a bug in ruby 1.9 where if you have
+  # method_missing defined and do some action that calls to_ary, then
+  # to_ary will be called on your instance REGARDLESS of whether
+  # respond_to_(:to_ary) returns true or not.
+  #
+  # http://tenderlovemaking.com/2011/06/28/til-its-ok-to-return-nil-from-to_ary/
+
+  def to_ary # :nodoc:
+    nil
+  end
+end if RUBY_VERSION >= "1.9"
+
 ##
 # Synchronizes bug tracking systems to omnifocus.
 #
@@ -65,38 +78,13 @@ class OmniFocus
 
   def omnifocus
     unless defined? @omnifocus then
-      @omnifocus = Appscript.app('OmniFocus').documents[1]
+      @omnifocus = Appscript.app('OmniFocus').default_document
     end
     @omnifocus
   end
 
-  def walk_queue_deep queue, msg
-    result = []
-
-    until queue.empty? do
-      item = queue.shift
-      result << item
-      subitems = item.send(msg).get
-      queue.push(*subitems)
-    end
-
-    result
-  end
-
-  def all_folders
-    queue = omnifocus.folders.get
-
-    walk_queue_deep queue, :folders
-  end
-
-  def all_projects
-    all_folders.map { |folder| folder.projects }
-  end
-
   def all_tasks
-    queue = all_projects.map { |project| project.tasks.get }.flatten
-
-    walk_queue_deep queue, :tasks
+    omnifocus.flattened_projects[its.status.eq(:active)].tasks.get.flatten
   end
 
   ##
@@ -129,19 +117,19 @@ class OmniFocus
 
   def prepopulate_existing_tasks
     prefixen = self.class.plugins.map { |klass| klass::PREFIX rescue nil }
+    of_tasks = nil
 
-    of_tasks =
-      if prefixen.all? then
-        all_tasks.find_all { |task|
+    if prefixen.all? then
+      of_tasks = all_tasks.find_all { |task|
         task.name.get =~ /^(#{Regexp.union prefixen}(?:-[\w.-]+)?\#\d+)/
       }
-      else
-        warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
+    else
+      warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
 
-        all_tasks.find_all { |task|
+      of_tasks = all_tasks.find_all { |task|
         task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
       }
-      end
+    end
 
     of_tasks.each do |of_task|
       ticket_id = of_task.name.get[/^([A-Z]+(?:-[\w-]+)?\#\d+)/, 1]
