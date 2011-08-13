@@ -24,7 +24,7 @@ end if RUBY_VERSION >= "1.9"
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '1.5.0'
+  VERSION = '1.5.1'
 
   ##
   # bug_db = {
