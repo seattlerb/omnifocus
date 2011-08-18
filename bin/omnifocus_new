@@ -9,17 +9,21 @@ title = ($stdin.tty? ? ARGV.join(" ") : $stdin.read).strip
 
 include Appscript
 
-omnifocus = app('OmniFocus').documents[1]
+omnifocus = app('OmniFocus').default_document
 
 unless project_name && ! title.empty? then
   cmd = File.basename $0
   projects = omnifocus.sections.projects.name.get.flatten.sort
 
-  abort "usage: #{cmd} project title\n\nprojects = #{projects.join ", "}"
+  abort "usage: #{cmd} project title\n\nprojects = nil, #{projects.join ", "}"
 end
 
-projects = omnifocus.sections.projects[its.name.eq(project_name)]
-project = projects.get.flatten.grep(Appscript::Reference).first
-project.make :new => :task, :with_properties => {:name => title}
+if project_name == "nil" then
+  omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
+else
+  projects = omnifocus.sections.projects[its.name.eq(project_name)]
+  project = projects.get.flatten.grep(Appscript::Reference).first
+  project.make :new => :task, :with_properties => {:name => title}
 
-puts "created task in #{project_name}: #{title}"
+  puts "created task in #{project_name}: #{title}"
+end
