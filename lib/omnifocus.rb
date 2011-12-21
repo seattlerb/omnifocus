@@ -14,6 +14,8 @@ class Appscript::Reference # :nodoc:
   end
 end if RUBY_VERSION >= "1.9"
 
+include Appscript
+
 ##
 # Synchronizes bug tracking systems to omnifocus.
 #
@@ -47,24 +49,20 @@ class OmniFocus
   ##
   # Load any file matching "omnifocus/*.rb"
 
-  def self.load_plugins
-    filter = ARGV.shift
-    loaded = {}
-    Gem.find_files("omnifocus/*.rb").each do |path|
-      name = File.basename path
-      next if loaded[name]
-      next unless path.index filter if filter
-      require path
-      loaded[name] = true
-    end
-  end
-
-  ##
-  # Load plugins and then execute the script
-
-  def self.run
-    load_plugins
-    self.new.run
+  def self._load_plugins
+    @__loaded__ ||=
+      begin
+        filter = ARGV.shift
+        loaded = {}
+        Gem.find_files("omnifocus/*.rb").each do |path|
+          name = File.basename path
+          next if loaded[name]
+          next unless path.index filter if filter
+          require path
+          loaded[name] = true
+        end
+        true
+      end
   end
 
   def initialize
@@ -77,10 +75,7 @@ class OmniFocus
   end
 
   def omnifocus
-    unless defined? @omnifocus then
-      @omnifocus = Appscript.app('OmniFocus').default_document
-    end
-    @omnifocus
+    @omnifocus ||= Appscript.app('OmniFocus').default_document
   end
 
   def all_tasks
@@ -118,7 +113,7 @@ class OmniFocus
   # bug_db hash if they match a bts_id.
 
   def prepopulate_existing_tasks
-    prefixen = self.class.plugins.map { |klass| klass::PREFIX rescue nil }
+    prefixen = self.class._plugins.map { |klass| klass::PREFIX rescue nil }
     of_tasks = nil
 
     prefix_re = /^(#{Regexp.union prefixen}(?:-[\w.-]+)?\#\d+)/
@@ -204,19 +199,21 @@ class OmniFocus
   ##
   # Return all the plugin modules that have been loaded.
 
-  def self.plugins
+  def self._plugins
+    _load_plugins
+
     constants.reject { |mod| mod =~ /^[A-Z_]+$/ }.map { |mod| const_get mod }
   end
 
-  def run
+  def cmd_sync
     # do this all up front so we can REALLY fuck shit up with plugins
-    self.class.plugins.each do |plugin|
+    self.class._plugins.each do |plugin|
       extend plugin
     end
 
     prepopulate_existing_tasks
 
-    self.class.plugins.each do |plugin|
+    self.class._plugins.each do |plugin|
       name = plugin.name.split(/::/).last.downcase
       warn "scanning #{name}"
       send "populate_#{name}_tasks"
@@ -230,5 +227,380 @@ class OmniFocus
 
     create_missing_projects
     update_tasks
+  end
+end
+
+class Object
+  def nilify
+    self == :missing_value ? nil : self
+  end
+end
+
+class OmniFocus
+  def self.method_missing(msg, *args)
+    of = OmniFocus.new
+    of.send("cmd_#{msg}", *args)
+  end
+
+  def hash h
+    h.sort_by { |k,v| [-v, k] }.first(10).map { |k,v|
+      "%4d %s" % [v,k[0,21]]
+    }
+  end
+
+  def cmd_neww args
+    project_name = args.shift
+    title = ($stdin.tty? ? args.join(" ") : $stdin.read).strip
+
+    unless project_name && ! title.empty? then
+      cmd = File.basename $0
+      projects = omnifocus.sections.projects.name.get.flatten.sort
+
+      abort "usage: #{cmd} project title\n\nprojects = nil, #{projects.join ", "}"
+    end
+
+    if project_name == "nil" then
+      omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
+    else
+      projects = omnifocus.sections.projects[its.name.eq(project_name)]
+      project = projects.get.flatten.grep(Appscript::Reference).first
+      project.make :new => :task, :with_properties => {:name => title}
+
+      puts "created task in #{project_name}: #{title}"
+    end
+  end
+
+  def cmd_projects args
+    h = Hash.new 0
+    n = 0
+
+    self.active_projects.each do |project|
+      name  = project.name
+      count = project.unscheduled_tasks.size
+      ri    = project.review_interval
+      time  = "#{ri[:steps]}#{ri[:unit].to_s[0,1]}"
+
+      next unless count > 0
+
+      n += count
+      h["#{name} (#{time})"] = count
+    end
+
+    puts "%5d: %3d%%: %s" % [n, 100, "Total"]
+    puts
+    h.sort_by { |name, count| -count }.each do |name, count|
+      puts "%5d: %3d%%: %s" % [count, 100 * count / n, name]
+    end
+  end
+
+  def cmd_wtf args
+    filter = its.completed.eq(false).and(its.repetition.eq(:missing_value))
+
+    h1 = Hash.new 0
+    omnifocus.flattened_contexts.get.each do |context|
+      context.tasks[filter].get.each do |task|
+        h1[[task.containing_project.name.get, context.name.get].join(": ")] += 1
+      end
+    end
+
+    h2 = Hash.new 0
+    omnifocus.flattened_contexts.get.each do |context|
+      h2[context.name.get] += context.tasks[filter].count
+    end
+
+    h3 = Hash.new 0
+    omnifocus.flattened_projects.get.each do |project|
+      h3[project.name.get] += project.tasks[filter].count
+    end
+
+    hash(h1).zip(hash(h2), hash(h3)).each do |a|
+      puts "%-26s%-26s%-26s" % a
+    end
+  end
+
+  def cmd_help args
+    methods = OmniFocus.public_instance_methods(false).grep(/^cmd_/)
+    methods.map! { |s| s[4..-1] }
+
+    puts "Available subcommands:"
+
+    methods.sort.each do |m|
+      puts "  #{m}"
+    end
+  end
+
+  def cmd_schedule args
+    name = args.shift or abort "need a context or project name"
+
+    of = OmniFocus.new
+    cp = context(name) || project(name)
+
+    abort "Context/Project not found: #{name}" unless cp
+
+    print_aggregate_report cp.tasks, :long
+  end
+
+  def cmd_fix_review_dates args
+    no_autosave_during do
+      projs = omnifocus.flattened_projects
+
+      projs.get.each do |proj|
+        nrd = proj.next_review_date.get
+        wday = nrd.wday
+        wday = 7 if wday == 0
+        if nrd.wday != 5 then
+          new_day = nrd - (86400*(wday-5))
+          proj.next_review_date.set new_day
+        end
+      end
+    end
+  end
+
+  def cmd_time args
+    m = 0
+
+    all_tasks.map { |task|
+      task.estimated_minutes.get
+    }.grep(Numeric).each { |t|
+      m += t
+    }
+
+    puts "all tasks = #{m} minutes"
+    puts "          = %.2f hours" % (m / 60.0)
+  end
+
+  def cmd_review args
+    print_aggregate_report all_projects
+  end
+
+  class Thingy
+    attr_accessor :omnifocus, :thing
+    def initialize of, thing
+      @omnifocus = of
+      @thing = thing
+    end
+
+    def active
+      its.completed.eq(false)
+    end
+
+    def method_missing m, *a
+      warn [m,*a].inspect
+      thing.send m, *a
+    end
+
+    def name
+      thing.name.get
+    end
+
+    def id
+      thing.id_.get
+    end
+
+    def inspect
+      "#{self.class}[#{self.id}]"
+    end
+  end
+
+  class Project < Thingy
+    def unscheduled
+      its.due_date.eq(:missing_value)
+    end
+
+    def unscheduled_tasks
+      thing.tasks[active.and(unscheduled)].get.map { |t|
+        Task.new omnifocus, t
+      }
+    end
+
+    def review_interval
+      thing.review_interval.get
+    end
+
+    def next_review_date
+      thing.next_review_date.get
+    end
+
+    def tasks
+      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+    end
+  end
+
+  class Task < Thingy
+    def start_date= t
+      thing.start_date.set t
+    end
+
+    def start_date
+      thing.start_date.get.nilify
+    end
+
+    def due_date= t
+      thing.due_date.set t
+    end
+
+    def due_date
+      thing.due_date.get.nilify
+    end
+
+    def repetition
+      thing.repetition.get.nilify
+    end
+
+    def completed
+      thing.completed.get.nilify
+    end
+  end
+
+  class Context < Thingy
+    def tasks
+      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+    end
+  end
+
+  def print_aggregate_report collection, long = false
+    h, p = self.aggregate collection
+
+    self.print_occurrence_table h, p
+
+    puts
+
+    self.print_details h, long
+  end
+
+  def aggregate collection
+    h = Hash.new { |h,k| h[k] = Hash.new { |h2,k2| h2[k2] = [] } }
+    p = Hash.new 0
+
+    collection.each do |thing|
+      name = thing.name
+      ri   = case thing
+             when Project then
+               thing.review_interval
+             when Task then
+               thing.repetition
+             else
+               raise "unknown type: #{thing.class}"
+             end
+      date = case thing
+             when Project then
+               thing.next_review_date
+             when Task then
+               thing.due_date
+             else
+               raise "unknown type: #{thing.class}"
+             end
+
+      date = if date then
+               date.strftime("%Y-%m-%d %a")
+             else
+               "unscheduled"
+             end
+
+      time = ri ? "#{ri[:steps]}#{ri[:unit].to_s[0,1]}" : "NR"
+
+      p[time] += 1
+      h[date][time] << name
+    end
+
+    return h, p
+  end
+
+  def print_occurrence_table h, p
+    p = p.sort_by { |priority, _|
+      case priority
+      when /(\d+)(.)/ then
+        n, u = $1.to_i, $2
+        n *= {"d" => 1, "w" => 7, "m" => 28, "y" => 365}[u]
+      when "NR" then
+        1/0.0
+      else
+        warn "unparsed: #{priority.inspect}"
+        0
+      end
+    }
+
+    units = p.map(&:first)
+
+    total = 0
+    hdr = "%14s%s %3s " + "%2s " * units.size
+    fmt = "%14s: %3d " + "%2s " * units.size
+    puts hdr % ["date", "\\", "tot", *units]
+    h.sort.each do |date, plan|
+      counts = units.map { |n| plan[n].size  }
+      subtot = counts.inject(&:+)
+      total += subtot
+      puts fmt % [date, subtot, *counts]
+    end
+    puts hdr % ["total", ":", total, *p.map(&:last)]
+  end
+
+  def print_details h, long = false
+    h.sort.each do |date, plan|
+      puts date
+      plan.sort.each do |period, things|
+        next if things.empty?
+        if long then
+          things.sort.each do |thing|
+            puts "  #{period}: #{thing}"
+          end
+        else
+          puts "  #{period}: #{things.sort.join ', '}"
+        end
+      end
+    end
+  end
+
+  def active_project
+    its.status.eq(:active)
+  end
+
+  def all_projects
+    self.omnifocus.flattened_projects.get.map { |p|
+      Project.new omnifocus, p
+    }
+  end
+
+  def all_contexts
+    self.omnifocus.flattened_contexts.get.map { |c|
+      Context.new omnifocus, c
+    }
+  end
+
+  def context name
+    context = self.omnifocus.flattened_contexts[name].get rescue nil
+    Context.new omnifocus, context if context
+  end
+
+  def project name
+    project = self.omnifocus.flattened_projects[name].get
+    Project.new omnifocus, project if project
+  end
+
+  def active_projects
+    self.omnifocus.flattened_projects[active_project].get.map { |p|
+      Project.new omnifocus, p
+    }
+  end
+
+  def regular_tasks
+    (its.value.class_.eq(:item).not).and(its.value.class_.eq(:folder).not)
+  end
+
+  def window
+    self.omnifocus.document_windows[1]
+  end
+
+  def selected_tasks
+    window.content.selected_trees[regular_tasks].value.get.map { |t|
+      Task.new self, t
+    }
+  end
+
+  def no_autosave_during
+    self.omnifocus.will_autosave.set false
+    yield
+  ensure
+    self.omnifocus.will_autosave.set true
   end
 end

@@ -3,4 +3,4 @@
 require 'rubygems'
 require 'omnifocus'
 
-OmniFocus.run
+OmniFocus.sync
