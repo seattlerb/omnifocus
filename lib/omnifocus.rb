@@ -202,10 +202,13 @@ class OmniFocus
   def self._plugins
     _load_plugins
 
-    constants.reject { |mod| mod =~ /^[A-Z_]+$/ }.map { |mod| const_get mod }
+    constants.
+      reject { |mod| mod =~ /^[A-Z_]+$/ }.
+      map    { |mod| const_get mod }.
+      reject { |mod| Class === mod }
   end
 
-  def cmd_sync
+  def cmd_sync args
     # do this all up front so we can REALLY fuck shit up with plugins
     self.class._plugins.each do |plugin|
       extend plugin
