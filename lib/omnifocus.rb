@@ -242,8 +242,8 @@ class OmniFocus
     of.send("cmd_#{msg}", *args)
   end
 
-  def hash h
-    h.sort_by { |k,v| [-v, k] }.first(10).map { |k,v|
+  def top hash, n=10
+    hash.sort_by { |k,v| [-v, k] }.first(n).map { |k,v|
       "%4d %s" % [v,k[0,21]]
     }
   end
@@ -254,13 +254,36 @@ class OmniFocus
 
     unless project_name && ! title.empty? then
       cmd = File.basename $0
-      projects = omnifocus.sections.projects.name.get.flatten.sort
+      projects = omnifocus.flattened_projects.name.get.sort
 
-      abort "usage: #{cmd} project title\n\nprojects = nil, #{projects.join ", "}"
+      warn "usage: #{cmd} project_name title        - create a project task"
+      warn "       #{cmd} nil          title        - create an inbox task"
+      warn "       #{cmd} project      project_name - create a new project"
+      warn ""
+      warn "project_names = #{projects.join ", "}"
+      exit 1
     end
 
-    if project_name == "nil" then
+    case project_name.downcase
+    when "nil" then
       omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
+    when "project" then
+      rep        = weekly
+      start_date = hour 0
+      due_date1  = hour 16
+      due_date2  = hour 16.5
+
+      cont = context("Releasing").thing
+      proj = make nerd_projects, :project, title, :review_interval => rep
+
+      props = {
+        :repetition => rep,
+        :context    => cont,
+        :start_date => start_date
+      }
+
+      make proj, :task, "Review #{title}", props.merge(:due_date => due_date1)
+      make proj, :task, "Release #{title}", props.merge(:due_date => due_date2)
     else
       projects = omnifocus.sections.projects[its.name.eq(project_name)]
       project = projects.get.flatten.grep(Appscript::Reference).first
@@ -268,6 +291,21 @@ class OmniFocus
 
       puts "created task in #{project_name}: #{title}"
     end
+  end
+
+  def weekly n=1
+    {
+      :unit => :week,
+      :steps => n,
+      :fixed_ => true,
+    }
+  end
+
+  def hour n
+    t = Time.now
+    midnight = Time.gm t.year, t.month, t.day
+    midnight -= t.utc_offset
+    midnight + (n * 3600).to_i
   end
 
   def cmd_projects args
@@ -313,7 +351,7 @@ class OmniFocus
       h3[project.name.get] += project.tasks[filter].count
     end
 
-    hash(h1).zip(hash(h2), hash(h3)).each do |a|
+    top(h1).zip(top(h2), top(h3)).each do |a|
       puts "%-26s%-26s%-26s" % a
     end
   end

@@ -1,29 +1,11 @@
 #!/usr/bin/ruby -w
 
-require 'rubygems'
-require 'mechanize'
-require 'appscript'
+ENV['GEM_HOME'] = ENV['GEM_PATH'] = "/Users/ryan/.gem/sandboxes/omnifocus"
 
-project_name = ARGV.shift
-title = ($stdin.tty? ? ARGV.join(" ") : $stdin.read).strip
+require 'rubygems'
+require 'omnifocus'
+require 'time'
 
 include Appscript
 
-omnifocus = app('OmniFocus').default_document
-
-unless project_name && ! title.empty? then
-  cmd = File.basename $0
-  projects = omnifocus.sections.projects.name.get.flatten.sort
-
-  abort "usage: #{cmd} project title\n\nprojects = nil, #{projects.join ", "}"
-end
-
-if project_name == "nil" then
-  omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
-else
-  projects = omnifocus.sections.projects[its.name.eq(project_name)]
-  project = projects.get.flatten.grep(Appscript::Reference).first
-  project.make :new => :task, :with_properties => {:name => title}
-
-  puts "created task in #{project_name}: #{title}"
-end
+OmniFocus.neww ARGV
