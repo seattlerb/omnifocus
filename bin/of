@@ -1,0 +1,19 @@
+#!/usr/bin/ruby -w
+
+ENV['GEM_HOME'] = ENV['GEM_PATH'] = "/Users/ryan/.gem/sandboxes/omnifocus"
+
+require 'rubygems'
+require 'omnifocus'
+require 'abbrev'
+
+methods = OmniFocus.public_instance_methods(false).grep(/^cmd_/)
+methods.map! { |s| s[4..-1] }
+
+tbl = Abbrev::abbrev methods
+
+cmd = ARGV.shift or abort "need a subcommand: sync, schedule, etc"
+msg = tbl[cmd]
+
+abort "unknown command: #{cmd}" unless msg
+
+OmniFocus.send msg, ARGV
