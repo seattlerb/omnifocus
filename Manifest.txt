@@ -3,6 +3,7 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
+bin/of
 bin/omnifocus
 bin/omnifocus_new
 lib/omnifocus.rb
