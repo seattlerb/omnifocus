@@ -8,4 +8,5 @@ require 'time'
 
 include Appscript
 
+warn "omnifocus_new is going away. Use `of new` instead"
 OmniFocus.neww ARGV

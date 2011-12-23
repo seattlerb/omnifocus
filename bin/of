@@ -1,7 +1,5 @@
 #!/usr/bin/ruby -w
 
-ENV['GEM_HOME'] = ENV['GEM_PATH'] = "/Users/ryan/.gem/sandboxes/omnifocus"
-
 require 'rubygems'
 require 'omnifocus'
 require 'abbrev'

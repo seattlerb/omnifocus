@@ -3,4 +3,5 @@
 require 'rubygems'
 require 'omnifocus'
 
-OmniFocus.sync
+warn "omnifocus is going away. Use `of sync` instead."
+OmniFocus.sync ARGV
