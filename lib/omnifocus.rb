@@ -26,7 +26,7 @@ include Appscript
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '1.5.2'
+  VERSION = '2.0.0'
 
   ##
   # bug_db = {
@@ -285,8 +285,8 @@ class OmniFocus
         :start_date => start_date
       }
 
-      make proj, :task, "Review #{title}", props.merge(:due_date => due_date1)
-      make proj, :task, "Release #{title}", props.merge(:due_date => due_date2)
+      make proj, :task, "Release #{title}", props.merge(:due_date => due_date1)
+      make proj, :task, "Triage #{title}", props.merge(:due_date => due_date2)
     else
       projects = omnifocus.sections.projects[its.name.eq(project_name)]
       project = projects.get.flatten.grep(Appscript::Reference).first
