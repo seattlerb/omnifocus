@@ -16,7 +16,7 @@ Synchronizes bug tracking systems to omnifocus.
 
 == SYNOPSIS:
 
-    % omnifocus
+    % of sync
     scanning ticket RF#3802
     removing parsetree # 314159
     creating parsetree # 3802
