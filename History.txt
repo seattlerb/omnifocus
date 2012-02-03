@@ -1,3 +1,14 @@
+=== 2.0.0 / 2012-02-02
+
+* 2 minor enhancements:
+
+  * Added bin/of
+  * Added deprecation notices to bin/omnifocus*
+
+* 1 bug fix:
+
+  * _plugins should skip classes explicitly.
+
 === 1.5.2 / 2011-08-25
 
 * 1 bug fix:
