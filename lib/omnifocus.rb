@@ -382,16 +382,41 @@ class OmniFocus
   end
 
   def cmd_fix_review_dates args
-    no_autosave_during do
-      projs = omnifocus.flattened_projects
+    projs = Hash.new { |h,k| h[k] = [] }
 
-      projs.get.each do |proj|
-        nrd = proj.next_review_date.get
-        wday = nrd.wday
-        wday = 7 if wday == 0
-        if nrd.wday != 5 then
-          new_day = nrd - (86400*(wday-5))
-          proj.next_review_date.set new_day
+    all_projects.each do |thing|
+      name = thing.name
+      ri   = thing.review_interval
+      date = thing.next_review_date
+
+      projs[ri[:steps]] << thing
+    end
+
+    projs.each do |k, a|
+      # helps stabilize and prevent random shuffling
+      projs[k] = a.sort_by { |p| [p.next_review_date, p.name] }
+    end
+
+    now = hour 0
+    fri = if now.wday == 5 then
+            now
+          else
+            now - 86400 * (now.wday-5)
+          end
+
+    no_autosave_during do
+      projs.each do |unit, a|
+        day = fri
+
+        steps = (a.size.to_f / unit).round
+
+        a.each_with_index do |proj, i|
+          if proj.next_review_date != day then
+            warn "Fixing #{proj.name} to #{day}"
+            proj.thing.next_review_date.set day
+          end
+
+          day += 86400 * 7 if (i+1) % steps == 0
         end
       end
     end
