@@ -304,6 +304,10 @@ class OmniFocus
     }
   end
 
+  def add_hours t, n
+    t + (n * 3600).to_i
+  end
+
   def hour n
     t = Time.now
     midnight = Time.gm t.year, t.month, t.day
@@ -382,14 +386,15 @@ class OmniFocus
   end
 
   def cmd_fix_review_dates args
+    skip = ARGV.first == "-n"
+
     projs = Hash.new { |h,k| h[k] = [] }
 
-    all_projects.each do |thing|
-      name = thing.name
-      ri   = thing.review_interval
-      date = thing.next_review_date
+    all_projects.each do |proj|
+      name = proj.name
+      ri   = proj.review_interval
 
-      projs[ri[:steps]] << thing
+      projs[ri[:steps]] << proj
     end
 
     projs.each do |k, a|
@@ -408,17 +413,180 @@ class OmniFocus
       projs.each do |unit, a|
         day = fri
 
-        steps = (a.size.to_f / unit).round
+        steps = (a.size.to_f / unit).ceil
 
         a.each_with_index do |proj, i|
           if proj.next_review_date != day then
-            warn "Fixing #{proj.name} to #{day}"
-            proj.thing.next_review_date.set day
+            warn "Fixing #{unit} #{proj.name} to #{day}"
+            proj.thing.next_review_date.set day unless skip
           end
 
           day += 86400 * 7 if (i+1) % steps == 0
         end
       end
+    end
+  end
+
+  def distribute count, weeks
+    count = count.to_f
+    d = 5 * weeks
+    hits = (1..d).step(d/count).map(&:round)
+    (1..d).map { |n| hits.include?(n) ? weeks : nil }
+  end
+
+  def calculate_schedule projs
+    all = [
+           distribute(projs[1].size, 1),
+           distribute(projs[2].size, 2),
+           distribute(projs[3].size, 3),
+           distribute(projs[5].size, 5),
+           distribute(projs[7].size, 7),
+          ]
+
+    # [[1, 1, 1, 1, 1],
+    #  [2, 2, 2, 2, 2, nil, 2, 2, 2, 2],
+    #  [3, nil, 3, 3, nil, 3, 3, nil, 3, 3, nil, 3, 3, nil, 3],
+    #  ...
+
+    all.map! { |a|
+      a.concat [nil] * (35-a.size)
+      a.each_slice(5).to_a
+    }
+
+    # [[[1, 1, 1, 1, 1],     [nil, nil, nil, nil, nil], ...
+    #  [[2, 2, 2, 2, 2],     [nil, 2, 2, 2, 2],         ...
+    #  [[3, nil, 3, 3, nil], [3, 3, nil, 3, 3],         ...
+    #  ...
+
+    weeks = all.transpose.map { |a, *r|
+      a.zip(*r).map(&:compact)
+    }
+
+    # [[[1, 2, 3, 5, 7], [1, 2], [1, 2, 3], [1, 2, 3], [1, 2, 5]],
+    #  [[3], [2, 3, 7], [2], [2, 3, 5], [2, 3]],
+    #  ...
+
+    weeks
+  end
+
+  def aggregate_releases
+    rels = context "Releasing"
+
+    tasks = Hash.new { |h,k| h[k] = [] } # name => tasks
+    projs = Hash.new { |h,k| h[k] = [] } # step => projs
+
+    rels.tasks.each do |task|
+      proj = task.project
+      tasks[proj.name] << task
+      projs[proj.review_interval[:steps]] << proj
+    end
+
+    projs.each do |k, a|
+      # helps stabilize and prevent random shuffling
+      projs[k] = a.uniq_by { |p| p.name }.sort_by { |p|
+        tasks[p.name].map(&:name).min
+      }
+    end
+
+    return rels, tasks, projs
+  end
+
+  def fix_project_review_intervals rels, skip
+    rels.tasks.each do |task|
+      proj = task.project
+
+      t_ri = task.repetition[:steps]
+      p_ri = proj.review_interval[:steps]
+
+      if t_ri != p_ri then
+        warn "Fixing #{task.name} to #{p_ri} weeks"
+
+        rep = {
+          :recurrence        => "FREQ=WEEKLY;INTERVAL=#{p_ri}",
+          :repetition_method => :fixed_repetition,
+        }
+
+        task.thing.repetition_rule.set :to => rep unless skip
+      end
+    end
+  end
+
+  def fix_release_task_names projs, tasks, skip
+    projs.each do |step, projects|
+      projects.each do |project|
+        tasks[project.name].each do |task|
+          if task.name =~ /^(\d+(\.\d+)?)/ then
+            if $1.to_i != step then
+              new_name = task.name.sub(/^(\d+(\.\d+)?)/, step.to_s)
+              puts "renaming to #{new_name}"
+              task.thing.name.set new_name unless skip
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def fix_release_task_schedule projs, tasks, skip
+    weeks = calculate_schedule projs
+
+    now = hour 0
+    mon = if now.wday == 1 then
+            now
+          else
+            now - 86400 * (now.wday-1)
+          end
+
+    weeks.each_with_index do |week, wi|
+      week.each_with_index do |day, di|
+        next if day.empty?
+        delta = wi*7 + di
+        date = mon + 86400 * delta
+
+        day.each do |rank|
+          p = projs[rank].shift
+          t = tasks[p.name]
+
+          t.each do |task|
+            if task.start_date != date then
+              due_date1  = add_hours date, 16
+              due_date2  = add_hours date, 16.5
+
+              warn "Fixing #{p.name} to #{date.strftime "%Y-%m-%d"}"
+
+              next if skip
+
+              case task.name
+              when /Release/ then
+                task.start_date = date
+                task.due_date = due_date1
+              when /Triage/ then
+                task.start_date = date
+                task.due_date = due_date2
+              else
+                warn "Unknown task name: #{task.name}"
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def cmd_reschedule args
+    skip = ARGV.first == "-n"
+
+    rels, tasks, projs = aggregate_releases
+
+    no_autosave_during do
+      warn "Checking project review intervals..."
+      fix_project_review_intervals rels, skip
+
+      warn "Checking releasing task numeric prefixes (if any)"
+      fix_release_task_names projs, tasks, skip
+
+      warn "Checking releasing task schedules"
+      fix_release_task_schedule projs, tasks, skip
     end
   end
 
@@ -483,6 +651,10 @@ class OmniFocus
       thing.review_interval.get
     end
 
+    def review_interval= h
+      thing.review_interval.set :to => h
+    end
+
     def next_review_date
       thing.next_review_date.get
     end
@@ -493,6 +665,10 @@ class OmniFocus
   end
 
   class Task < Thingy
+    def project
+      Project.new omnifocus, thing.containing_project.get
+    end
+
     def start_date= t
       thing.start_date.set t
     end
@@ -670,3 +846,24 @@ class OmniFocus
     self.omnifocus.will_autosave.set true
   end
 end
+
+class Array
+  def merge! o
+    o.each_with_index do |x, i|
+      self[i] << x
+    end
+  end
+end
+
+module Enumerable
+  def uniq_by
+    r, s = [], {}
+    each do |e|
+      v = yield(e)
+      next if s[v]
+      r << e
+      s[v] = true
+    end
+    r
+  end
+end unless [].respond_to?(:uniq_by)
