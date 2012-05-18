@@ -1,3 +1,12 @@
+=== 2.1.0 / 2012-05-17
+
+* 4 minor enhancements:
+
+  * Added "reschedule" command to evenly distribute review & release chaos.
+  * Added Project#review_interval=.
+  * Added Task#project.
+  * of fix_review_dates now fully re-distributes projects to be evenly spread out.
+
 === 2.0.0 / 2012-02-02
 
 * 2 minor enhancements:
