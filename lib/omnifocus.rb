@@ -26,7 +26,7 @@ include Appscript
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = '2.0.0'
+  VERSION = '2.1.0'
 
   ##
   # bug_db = {
@@ -385,7 +385,7 @@ class OmniFocus
     print_aggregate_report cp.tasks, :long
   end
 
-  def cmd_fix_review_dates args
+  def cmd_fix_review_dates args # TODO: merge into reschedule
     skip = ARGV.first == "-n"
 
     projs = Hash.new { |h,k| h[k] = [] }
