@@ -22,6 +22,15 @@ Synchronizes bug tracking systems to omnifocus.
     creating parsetree # 3802
     ...
 
+== Known Plugins:
+
++ omnifocus-bugzilla       by kushali
++ omnifocus-github         by zenspider
++ omnifocus-pivotaltracker by vanska
++ omnifocus-redmine        by kushali
++ omnifocus-rt             by kushali
++ omnifocus-rubyforge      by zenspider
+
 == REQUIREMENTS:
 
 * mechanize
