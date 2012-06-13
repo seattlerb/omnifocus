@@ -257,11 +257,11 @@ class OmniFocus
 
     unless project_name && ! title.empty? then
       cmd = File.basename $0
-      projects = omnifocus.flattened_projects.name.get.sort
+      projects = omnifocus.flattened_projects.name.get.sort_by(&:downcase)
 
-      warn "usage: #{cmd} project_name title        - create a project task"
-      warn "       #{cmd} nil          title        - create an inbox task"
-      warn "       #{cmd} project      project_name - create a new project"
+      warn "usage: #{cmd} new project_name title        - create a project task"
+      warn "       #{cmd} new nil          title        - create an inbox task"
+      warn "       #{cmd} new project      project_name - create a new project"
       warn ""
       warn "project_names = #{projects.join ", "}"
       exit 1
