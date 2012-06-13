@@ -78,10 +78,14 @@ class OmniFocus
     @omnifocus ||= Appscript.app('OmniFocus').default_document
   end
 
+  def all_subtasks task
+    [task] + task.tasks.get.flatten.map{|t| all_subtasks(t) }
+  end
+
   def all_tasks
     # how to filter on active projects. note, this causes sync problems
     # omnifocus.flattened_projects[its.status.eq(:active)].tasks.get.flatten
-    omnifocus.flattened_projects.tasks.get.flatten
+    omnifocus.flattened_projects.tasks.get.flatten.map{|t| all_subtasks(t) }.flatten
   end
 
   ##
