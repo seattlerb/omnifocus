@@ -1,3 +1,9 @@
+=== 2.1.1 / 2012-06-14
+
+* 1 minor enhancement:
+
+  * Make “of sync” aware of nested tasks (dohzya)
+
 === 2.1.0 / 2012-05-17
 
 * 4 minor enhancements:
