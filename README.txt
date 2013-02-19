@@ -30,6 +30,7 @@ Synchronizes bug tracking systems to omnifocus.
 + omnifocus-redmine        by kushali
 + omnifocus-rt             by kushali
 + omnifocus-rubyforge      by zenspider
++ omnifocus-lighthouse	   by juliengrimault
 
 == REQUIREMENTS:
 
