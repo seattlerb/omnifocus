@@ -1,3 +1,9 @@
+=== 2.1.2 / 2013-02-22
+
+* 1 bug fix:
+
+  * Fix task population for projects with whitespace in their names (thank you vesen)
+
 === 2.1.1 / 2012-06-14
 
 * 1 minor enhancement:
