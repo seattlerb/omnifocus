@@ -26,11 +26,12 @@ Synchronizes bug tracking systems to omnifocus.
 
 + omnifocus-bugzilla       by kushali
 + omnifocus-github         by zenspider
-+ omnifocus-pivotaltracker by vanska
++ omnifocus-pivotaltracker by vesan
 + omnifocus-redmine        by kushali
 + omnifocus-rt             by kushali
 + omnifocus-rubyforge      by zenspider
 + omnifocus-lighthouse     by juliengrimault
++ omnifocus-trello         by vesan
 
 == REQUIREMENTS:
 
