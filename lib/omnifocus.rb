@@ -228,7 +228,9 @@ class OmniFocus
 
     if $DEBUG then
       require 'pp'
+      p :existing
       pp existing
+      p :bug_db
       pp bug_db
     end
 
