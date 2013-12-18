@@ -396,7 +396,6 @@ class OmniFocus
     projs = Hash.new { |h,k| h[k] = [] }
 
     all_projects.each do |proj|
-      name = proj.name
       ri   = proj.review_interval
 
       projs[ri[:steps]] << proj
