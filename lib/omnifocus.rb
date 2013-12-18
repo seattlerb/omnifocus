@@ -383,7 +383,6 @@ class OmniFocus
   def cmd_schedule args
     name = args.shift or abort "need a context or project name"
 
-    of = OmniFocus.new
     cp = context(name) || project(name)
 
     abort "Context/Project not found: #{name}" unless cp
