@@ -715,7 +715,7 @@ class OmniFocus
   end
 
   def aggregate collection
-    h = Hash.new { |h,k| h[k] = Hash.new { |h2,k2| h2[k2] = [] } }
+    h = Hash.new { |h1,k1| h1[k1] = Hash.new { |h2,k2| h2[k2] = [] } }
     p = Hash.new 0
 
     collection.each do |thing|
