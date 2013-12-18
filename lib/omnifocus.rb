@@ -162,7 +162,13 @@ class OmniFocus
   # the nerd folder.
 
   def create_missing_projects
-    (bug_db.keys - nerd_projects.projects.name.get).each do |name|
+    projects_name = []
+    nerd_projects.projects.name.get.each do |proj|
+      proj_name = proj
+      proj_name.force_encoding("UTF-8")
+      projects_name << proj_name
+    end
+    (bug_db.keys - projects_name).each do |name|
       warn "creating project #{name}"
       next if $DEBUG
       make nerd_projects, :project, name
