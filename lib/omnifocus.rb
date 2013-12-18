@@ -120,23 +120,30 @@ class OmniFocus
     prefixen = self.class._plugins.map { |klass| klass::PREFIX rescue nil }
     of_tasks = nil
 
-    prefix_re = /^(#{Regexp.union prefixen}(?:-[\w\s.-]+)?\#\d+)/
+    prefix_re = /^(#{Regexp.union prefixen}(?:-[[:alnum:]\s.-]+)?\#\d+)/
 
     if prefixen.all? then
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ prefix_re
+        task_name = task.name.get
+        task_name.force_encoding("UTF-8")
+        task_name =~ prefix_re
       }
     else
       warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
 
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
+        task_name = task.name.get
+        task_name.force_encoding("UTF-8")
+        task_name =~ /^([A-Z]+(?:-[[:alnum:]-]+)?\#\d+)/
       }
     end
 
     of_tasks.each do |of_task|
-      ticket_id = of_task.name.get[prefix_re, 1]
+      task_name = of_task.name.get
+      task_name.force_encoding("UTF-8")
+      ticket_id = task_name[prefix_re, 1]
       project                    = of_task.containing_project.name.get
+      project.force_encoding("UTF-8")
       existing[ticket_id]        = project
       bug_db[project][ticket_id] = false
     end
