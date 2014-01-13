@@ -383,7 +383,6 @@ class OmniFocus
   def cmd_schedule args
     name = args.shift or abort "need a context or project name"
 
-    of = OmniFocus.new
     cp = context(name) || project(name)
 
     abort "Context/Project not found: #{name}" unless cp
@@ -397,7 +396,6 @@ class OmniFocus
     projs = Hash.new { |h,k| h[k] = [] }
 
     all_projects.each do |proj|
-      name = proj.name
       ri   = proj.review_interval
 
       projs[ri[:steps]] << proj
@@ -717,7 +715,7 @@ class OmniFocus
   end
 
   def aggregate collection
-    h = Hash.new { |h,k| h[k] = Hash.new { |h2,k2| h2[k2] = [] } }
+    h = Hash.new { |h1,k1| h1[k1] = Hash.new { |h2,k2| h2[k2] = [] } }
     p = Hash.new 0
 
     collection.each do |thing|
