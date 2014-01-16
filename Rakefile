@@ -19,10 +19,14 @@ Hoe.spec "omnifocus" do
 end
 
 task :sync => :isolate do
+  ENV["GEM_PATH"] = File.expand_path "~/.gem/sandboxes/omnifocus"
+
   ruby "-Ilib:../../omnifocus-github/dev/lib bin/of sync github"
 end
 
 task :debug => :isolate do
+  ENV["GEM_PATH"] = File.expand_path "~/.gem/sandboxes/omnifocus"
+
   ruby "-d -Ilib:../../omnifocus-github/dev/lib bin/of sync github"
 end
 
