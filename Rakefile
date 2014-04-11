@@ -13,7 +13,7 @@ Hoe.spec "omnifocus" do
   license "MIT"
 
   dependency "rb-appscript", "~> 0.6.1"
-  dependency "mechanize",    "~> 1.0"
+  dependency "mechanize",    "~> 2.0"
 
   pluggable!
 end
