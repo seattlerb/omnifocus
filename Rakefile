@@ -18,16 +18,18 @@ Hoe.spec "omnifocus" do
   pluggable!
 end
 
+inc = "-Ilib:../../omnifocus-github/dev/lib:../../omnifocus-redmin/dev/lib"
+
 task :sync => :isolate do
   ENV["GEM_PATH"] = File.expand_path "~/.gem/sandboxes/omnifocus"
 
-  ruby "-Ilib:../../omnifocus-github/dev/lib bin/of sync github"
+  ruby "#{inc} bin/of sync"
 end
 
 task :debug => :isolate do
   ENV["GEM_PATH"] = File.expand_path "~/.gem/sandboxes/omnifocus"
 
-  ruby "-d -Ilib:../../omnifocus-github/dev/lib bin/of sync github"
+  ruby "-d #{inc} bin/of sync github"
 end
 
 # vim: syntax=ruby
