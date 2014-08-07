@@ -497,20 +497,24 @@ class OmniFocus
 
   def fix_project_review_intervals rels, skip
     rels.tasks.each do |task|
-      proj = task.project
+      begin
+        proj = task.project
 
-      t_ri = task.repetition[:steps]
-      p_ri = proj.review_interval[:steps]
+        t_ri = task.repetition[:steps]
+        p_ri = proj.review_interval[:steps]
 
-      if t_ri != p_ri then
-        warn "Fixing #{task.name} to #{p_ri} weeks"
+        if t_ri != p_ri then
+          warn "Fixing #{task.name} to #{p_ri} weeks"
 
-        rep = {
-          :recurrence        => "FREQ=WEEKLY;INTERVAL=#{p_ri}",
-          :repetition_method => :fixed_repetition,
-        }
+          rep = {
+                 :recurrence        => "FREQ=WEEKLY;INTERVAL=#{p_ri}",
+                 :repetition_method => :fixed_repetition,
+                }
 
-        task.thing.repetition_rule.set :to => rep unless skip
+          task.thing.repetition_rule.set :to => rep unless skip
+        end
+      rescue => e
+        warn "ERROR: skipping '#{task.name}' in '#{proj.name}': #{e.message}"
       end
     end
   end
