@@ -1,3 +1,9 @@
+=== 2.1.5 / 2014-08-08
+
+* 1 bug fix:
+
+  * Fixed 'of reschedule' to gracefully deal with tasks w/o repeat.
+
 === 2.1.4 / 2014-05-15
 
 * 1 minor enhancement:
