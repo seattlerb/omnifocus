@@ -1,7 +1,7 @@
 = omnifocus
 
 home :: https://github.com/seattlerb/omnifocus
-rdoc :: http://seattlerb.rubyforge.org/omnifocus
+rdoc :: http://docs.seattlerb.org/omnifocus
 
 == DESCRIPTION:
 
