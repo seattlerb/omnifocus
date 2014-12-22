@@ -19,8 +19,6 @@ Hoe.spec "omnifocus" do
 end
 
 def omnifocus cmd, options = nil
-  ENV["GEM_PATH"] = File.expand_path "~/.gem/sandboxes/omnifocus"
-
   inc = "-Ilib:../../omnifocus-github/dev/lib:../../omnifocus-redmine/dev/lib"
 
   ruby "#{options} #{inc} bin/of #{cmd}"
@@ -36,7 +34,9 @@ task :fix => :isolate do
 end
 
 task :debug => :isolate do
-  omnifocus "sync github", "-d"
+  cmd = ENV["CMD"] || "sync github"
+  d = ENV["D"] ? "-d" : nil
+  omnifocus cmd, d
 end
 
 # vim: syntax=ruby
