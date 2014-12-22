@@ -393,13 +393,7 @@ class OmniFocus
   def cmd_fix_review_dates args # TODO: merge into reschedule
     skip = ARGV.first == "-n"
 
-    projs = Hash.new { |h,k| h[k] = [] }
-
-    all_projects.each do |proj|
-      ri   = proj.review_interval
-
-      projs[ri[:steps]] << proj
-    end
+    projs = all_projects.group_by { |proj| proj.review_interval[:steps] }
 
     projs.each do |k, a|
       # helps stabilize and prevent random shuffling
