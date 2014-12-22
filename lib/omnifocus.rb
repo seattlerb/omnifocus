@@ -612,7 +612,7 @@ class OmniFocus
   end
 
   def cmd_review args
-    print_aggregate_report all_projects
+    print_aggregate_report live_projects
   end
 
   class Thingy
@@ -805,8 +805,18 @@ class OmniFocus
     its.status.eq(:active)
   end
 
+  def non_dropped_project
+    its.status.eq(:dropped).not
+  end
+
   def all_projects
     self.omnifocus.flattened_projects.get.map { |p|
+      Project.new omnifocus, p
+    }
+  end
+
+  def live_projects
+    self.omnifocus.flattened_projects[non_dropped_project].get.map { |p|
       Project.new omnifocus, p
     }
   end
