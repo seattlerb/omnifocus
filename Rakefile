@@ -14,6 +14,7 @@ Hoe.spec "omnifocus" do
 
   dependency "rb-appscript", "~> 0.6.1"
   dependency "mechanize",    "~> 2.0"
+  dependency "octokit",   "~> 2.0", :development if ENV["TEST"]
 
   pluggable!
 end
