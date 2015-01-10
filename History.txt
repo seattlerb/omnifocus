@@ -1,3 +1,9 @@
+=== 2.1.6 / 2015-01-09
+
+* 1 minor enhancement:
+
+  * Review command filters out dropped projects.
+
 === 2.1.5 / 2014-08-08
 
 * 1 bug fix:
