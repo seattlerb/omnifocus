@@ -1,6 +1,8 @@
 require 'rubygems'
 require 'appscript'
 
+NERD_FOLDER = ENV.fetch('OF_BTS_FOLDER') { 'nerd' }
+
 class Appscript::Reference # :nodoc:
   # HACK: There is apparently a bug in ruby 1.9 where if you have
   # method_missing defined and do some action that calls to_ary, then
@@ -100,12 +102,12 @@ class OmniFocus
 
   def nerd_projects
     unless defined? @nerd_projects then
-      @nerd_projects = omnifocus.folders["nerd"]
+      @nerd_projects = omnifocus.folders[NERD_FOLDER]
 
       begin
         @nerd_projects.get
       rescue
-        make omnifocus, :folder, "nerd"
+        make omnifocus, :folder, NERD_FOLDER
       end
     end
 
