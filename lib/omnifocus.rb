@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'appscript'
 
-NERD_FOLDER = ENV.fetch('OF_BTS_FOLDER') { 'nerd' }
+NERD_FOLDER = ENV["OF_FOLDER"] || "nerd"
 
 class Appscript::Reference # :nodoc:
   # HACK: There is apparently a bug in ruby 1.9 where if you have
