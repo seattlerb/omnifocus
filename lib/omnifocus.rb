@@ -170,15 +170,15 @@ class OmniFocus
   # for +bug_db+ for more info on how you should populate it.
 
   def update_tasks
-    bug_db.each do |name, tickets|
-      project = nerd_projects.projects[name]
+    bug_db.each do |project_name, tickets|
+      project = nerd_projects.projects[project_name]
 
       tickets.each do |bts_id, value|
         case value
         when true
           project.tasks[its.name.contains(bts_id)].get.each do |task|
             if task.completed.get
-              puts "Re-opening #{name} # #{bts_id}"
+              puts "Re-opening #{project_name} # #{bts_id}"
               next if $DEBUG
               task.completed.set false
             end
@@ -186,12 +186,12 @@ class OmniFocus
         when false
           project.tasks[its.name.contains(bts_id)].get.each do |task|
             next if task.completed.get
-            puts "Removing #{name} # #{bts_id}"
+            puts "Removing #{project_name} # #{bts_id}"
             next if $DEBUG
             task.completed.set true
           end
         when Array
-          puts "Adding #{name} # #{bts_id}"
+          puts "Adding #{project_name} # #{bts_id}"
           next if $DEBUG
           title, url = *value
           make project, :task, title, :note => url
