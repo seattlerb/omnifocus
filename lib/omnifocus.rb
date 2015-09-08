@@ -197,7 +197,7 @@ class OmniFocus
           title, url = *value
           make project, :task, title, :note => url
         when Hash
-          puts "Adding Detail #{project_name} # #{bts_id} #{$DEBUG}"
+          puts "Adding Detail #{project_name} # #{bts_id}"
           next if $DEBUG
           properties = value.clone
           title = properties.delete(:title)
