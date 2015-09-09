@@ -33,9 +33,9 @@ class OmniFocus
   ##
   # bug_db = {
   #   project => {
-  # bts_id => [task_name, url, due, defer], # only on BTS     = add to OF
-  # bts_id => {field=>value, ...},          # only on BTS     = OF and maybe BTS. Update fields
-  # bts_id => true,                         # both BTS and OF = don't touch
+  #   bts_id => [task_name, url, due, defer], # only on BTS     = add to OF
+  #   bts_id => {field=>value, ...},          # only on BTS     = OF and maybe BTS. Update fields
+  #   bts_id => true,                         # both BTS and OF = don't touch
   #   }
   # }
 
