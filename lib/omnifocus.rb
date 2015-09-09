@@ -94,8 +94,7 @@ class OmniFocus
   # Utility shortcut to make a new thing with a name via appscript.
 
   def make target, type, name, extra = {}
-    properties = { :name => name }.merge(extra)
-    target.make :new => type, :with_properties => properties
+    target.make :new => type, :with_properties => { :name => name }.merge(extra)
   end
 
   ##
