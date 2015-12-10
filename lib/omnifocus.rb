@@ -33,9 +33,9 @@ class OmniFocus
   ##
   # bug_db = {
   #   project => {
-  #     bts_id => [task_name, url], # only on BTS     = add to OF
-  #     bts_id => true,             # both BTS and OF = don't touch
-  #     bts_id => false,            # only on OF      = remove from OF
+  #     bts_id => [task_name, url, due, defer], # only on BTS     = add to OF
+  #     bts_id => {field=>value, ...},          # only on BTS     = OF and maybe BTS. Update fields
+  #     bts_id => true,                         # both BTS and OF = don't touch
   #   }
   # }
 
@@ -195,6 +195,12 @@ class OmniFocus
           next if $DEBUG
           title, url = *value
           make project, :task, title, :note => url
+        when Hash
+          puts "Adding Detail #{name} # #{bts_id}"
+          next if $DEBUG
+          properties = value.clone
+          title = properties.delete(:title)
+          make project, :task, title, properties
         else
           abort "ERROR: Unknown value in bug_db #{bts_id}: #{value.inspect}"
         end
