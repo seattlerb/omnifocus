@@ -1,3 +1,9 @@
+=== 2.3.0 / 2015-12-15
+
+* 1 minor enhancement:
+
+  * Added support for hash parameter to make. (andrewguy9)
+
 === 2.2.0 / 2015-02-02
 
 * 1 minor enhancement:
