@@ -14,7 +14,7 @@ class Appscript::Reference # :nodoc:
   def to_ary # :nodoc:
     nil
   end
-end if RUBY_VERSION >= "1.9"
+end if RUBY_VERSION >= "1.9" || < "2.2"
 
 include Appscript
 
