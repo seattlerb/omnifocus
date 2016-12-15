@@ -122,23 +122,30 @@ class OmniFocus
     prefixen = self.class._plugins.map { |klass| klass::PREFIX rescue nil }
     of_tasks = nil
 
-    prefix_re = /^(#{Regexp.union prefixen}(?:-[\w\s.-]+)?\#\d+)/
+    prefix_re = /^(#{Regexp.union prefixen}(?:-[[:alnum:]\s.-]+)?\#\d+)/
 
     if prefixen.all? then
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ prefix_re
+        task_name = task.name.get
+        task_name.force_encoding("UTF-8")
+        task_name =~ prefix_re
       }
     else
       warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
 
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
+        task_name = task.name.get
+        task_name.force_encoding("UTF-8")
+        task_name =~ /^([A-Z]+(?:-[[:alnum:]-]+)?\#\d+)/
       }
     end
 
     of_tasks.each do |of_task|
-      ticket_id = of_task.name.get[prefix_re, 1]
+      task_name = of_task.name.get
+      task_name.force_encoding("UTF-8")
+      ticket_id = task_name[prefix_re, 1]
       project                    = of_task.containing_project.name.get
+      project.force_encoding("UTF-8")
       existing[ticket_id]        = project
       bug_db[project][ticket_id] = false
     end
@@ -157,7 +164,13 @@ class OmniFocus
   # the nerd folder.
 
   def create_missing_projects
-    (bug_db.keys - nerd_projects.projects.name.get).each do |name|
+    projects_name = []
+    nerd_projects.projects.name.get.each do |proj|
+      proj_name = proj
+      proj_name.force_encoding("UTF-8")
+      projects_name << proj_name
+    end
+    (bug_db.keys - projects_name).each do |name|
       warn "creating project #{name}"
       next if $DEBUG
       make nerd_projects, :project, name
