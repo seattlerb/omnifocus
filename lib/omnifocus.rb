@@ -1,5 +1,5 @@
 require 'rubygems'
-require 'appscript'
+require 'rb-scpt'
 
 NERD_FOLDER = ENV["OF_FOLDER"] || "nerd"
 
@@ -14,7 +14,7 @@ class Appscript::Reference # :nodoc:
   def to_ary # :nodoc:
     nil
   end
-end if RUBY_VERSION >= "1.9" || < "2.2"
+end if RUBY_VERSION >= "1.9"
 
 include Appscript
 
