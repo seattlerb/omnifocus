@@ -12,7 +12,7 @@ Hoe.spec "omnifocus" do
 
   license "MIT"
 
-  dependency "rb-appscript", "~> 0.6.1"
+  dependency "rb-scpt", "~> 1.0"
   dependency "mechanize",    "~> 2.0"
   dependency "octokit",   "~> 2.0", :development if ENV["TEST"]
 
@@ -26,7 +26,7 @@ def omnifocus cmd, options = nil
 end
 
 task :sync => :isolate do
-  omnifocus "sync"
+  omnifocus "sync github"
 end
 
 task :fix => :isolate do

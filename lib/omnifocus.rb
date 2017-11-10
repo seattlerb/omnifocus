@@ -1,5 +1,5 @@
 require 'rubygems'
-require 'appscript'
+require 'rb-scpt'
 
 NERD_FOLDER = ENV["OF_FOLDER"] || "nerd"
 
