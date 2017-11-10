@@ -296,7 +296,7 @@ class OmniFocus
       props = {
         :repetition => rep,
         :context    => cont,
-        :start_date => start_date
+        :defer_date => start_date
       }
 
       make proj, :task, "Release #{title}", props.merge(:due_date => due_date1)
