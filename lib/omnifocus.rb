@@ -180,7 +180,12 @@ class OmniFocus
             if task.completed.get
               puts "Re-opening #{name} # #{bts_id}"
               next if $DEBUG
-              task.completed.set false
+
+              begin
+                task.completed.set false
+              rescue
+                task.mark_incomplete
+              end
             end
           end
         when false
@@ -188,7 +193,12 @@ class OmniFocus
             next if task.completed.get
             puts "Removing #{name} # #{bts_id}"
             next if $DEBUG
-            task.completed.set true
+
+            begin
+              task.completed.set true
+            rescue
+              task.mark_complete
+            end
           end
         when Array
           puts "Adding #{name} # #{bts_id}"
