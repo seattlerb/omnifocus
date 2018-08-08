@@ -1,5 +1,6 @@
-require 'rubygems'
+old_w, $-w = $-w, nil
 require 'rb-scpt'
+$-w = old_w
 
 NERD_FOLDER = ENV["OF_FOLDER"] || "nerd"
 
@@ -691,10 +692,14 @@ class OmniFocus
 
     def start_date= t
       thing.start_date.set t
+    rescue
+      thing.defer_date.set t
     end
 
     def start_date
       thing.start_date.get.nilify
+    rescue
+      thing.defer_date.get.nilify
     end
 
     def due_date= t
