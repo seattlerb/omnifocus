@@ -1,3 +1,15 @@
+=== 2.4.0 / 2019-01-02
+
+* 1 minor enhancement:
+
+  * Switched to rb-scpt for OSX compatibility. (current version is noisy, hopefully this will be fixed soon)
+
+* 3 bug fixes:
+
+  * Fixed marking tasks in/complete with latest version of omnifocus.
+  * More fixes for defer_date changes in OF applescript dictionary.
+  * Project field is defer_date (and alias doesn't seem to work)
+
 === 2.3.0 / 2015-12-15
 
 * 1 minor enhancement:

@@ -29,7 +29,7 @@ include Appscript
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = "2.3.0"
+  VERSION = "2.4.0"
 
   ##
   # bug_db = {
