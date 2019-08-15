@@ -48,6 +48,7 @@ class OmniFocus
   # }
 
   attr_reader :existing
+  attr_reader :update
 
   ##
   # Load any file matching "omnifocus/*.rb"
@@ -71,6 +72,7 @@ class OmniFocus
   def initialize
     @bug_db   = Hash.new { |h,k| h[k] = {} }
     @existing = {}
+    @update =   {}
   end
 
   def its # :nodoc:
@@ -141,6 +143,7 @@ class OmniFocus
       ticket_id = of_task.name.get[prefix_re, 1]
       project                    = of_task.containing_project.name.get
       existing[ticket_id]        = project
+      update[ticket_id]          = of_task.note.get.lines.first
       bug_db[project][ticket_id] = false
     end
   end
