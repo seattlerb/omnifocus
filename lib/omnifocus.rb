@@ -296,27 +296,10 @@ class OmniFocus
     when "nil" then
       omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
     when "project" then
-      rep        = weekly
-      start_date = hour 0
-      due_date1  = hour 16
-      due_date2  = hour 16.5
-
-      cont = context("Releasing").thing
-      proj = make nerd_projects, :project, title, :review_interval => rep
-
-      props = {
-        :repetition => rep,
-        :context    => cont,
-        :defer_date => start_date
-      }
-
-      make proj, :task, "Release #{title}", props.merge(:due_date => due_date1)
-      make proj, :task, "Triage #{title}", props.merge(:due_date => due_date2)
+      new_or_repair_project title
     else
-      projects = omnifocus.sections.projects[its.name.eq(project_name)]
-      project = projects.get.flatten.grep(Appscript::Reference).first
-      project.make :new => :task, :with_properties => {:name => title}
-
+      project = omnifocus.flattened_projects[its.name.eq(project_name)].first.get
+      make project, :task, title
       puts "created task in #{project_name}: #{title}"
     end
   end
@@ -367,14 +350,14 @@ class OmniFocus
     filter = its.completed.eq(false).and(its.repetition.eq(:missing_value))
 
     h1 = Hash.new 0
-    omnifocus.flattened_contexts.get.each do |context|
+    _flattened_contexts.each do |context|
       context.tasks[filter].get.each do |task|
         h1[[task.containing_project.name.get, context.name.get].join(": ")] += 1
       end
     end
 
     h2 = Hash.new 0
-    omnifocus.flattened_contexts.get.each do |context|
+    _flattened_contexts.each do |context|
       h2[context.name.get] += context.tasks[filter].count
     end
 
@@ -508,6 +491,61 @@ class OmniFocus
     return rels, tasks, projs
   end
 
+  def new_or_repair_project name
+    warn "project #{name}"
+
+    rep          = weekly
+    start_date   = hour 0
+    rel_due_date = hour 16
+    tri_due_date = hour 16.5
+    props = {
+      :repetition        => rep,
+      :defer_date        => start_date,
+      :estimated_minutes => 10,
+    }
+
+    min30 = 30 * 60
+
+    rel_q = its.completed.eq(false).and(its.name.begins_with("Release"))
+    tri_q = its.completed.eq(false).and(its.name.begins_with("Triage"))
+
+    rel_tag = context("Releasing").thing
+    tri_tag = context("Triaging").thing
+
+    proj = nerd_projects.projects[name].get rescue nil
+
+    unless proj then
+      warn "creating #{name} project"
+      proj = make nerd_projects, :project, name, :review_interval => rep
+
+      make proj, :task, "Release #{name}", props.merge(:due_date => rel_due_date,
+                                                       :primary_tag => rel_tag)
+      make proj, :task, "Triage #{name}",  props.merge(:due_date => tri_due_date,
+                                                       :primary_tag => tri_tag)
+      return
+    end
+
+    rel_task = proj.tasks[rel_q].first.get rescue nil
+    tri_task = proj.tasks[tri_q].first.get rescue nil
+
+    new_task_from proj, tri_task, "Release #{name}", rel_tag, -min30 unless rel_task
+    new_task_from proj, rel_task, "Triage #{name}",  tri_tag, +min30 unless tri_task
+  end
+
+  def new_task_from proj, task, name, tag, offset
+    warn "  + #{name} task"
+
+    props = {
+      :estimated_minutes => 10,
+      :due_date          => task.due_date.get + offset,
+      :defer_date        => task.defer_date.get,
+      :repetition        => task.repetition.get,
+      :primary_tag       => tag,
+    }
+
+    make proj, :task, name, props
+  end
+
   def fix_project_review_intervals rels, skip
     rels.tasks.each do |task|
       begin
@@ -594,6 +632,31 @@ class OmniFocus
     end
   end
 
+  def fix_missing_tasks skip
+    q_rel = its.completed.eq(false).and(its.name.begins_with("Release"))
+    q_tri = its.completed.eq(false).and(its.name.begins_with("Triage"))
+
+    nerd_projects.projects.get.each do |proj|
+      name = proj.name.get
+
+      rel = proj.tasks[q_rel].first.get rescue nil
+      tri = proj.tasks[q_tri].first.get rescue nil
+
+      case [!!rel, !!tri]
+      when [true, true] then
+        # do nothing
+      when [false, false] then
+        # do nothing?
+      when [true, false] then # create triage
+        warn "  Repairing triage for #{name}"
+        new_or_repair_project name unless skip
+      when [false, true] then # create release
+        warn "  Repairing release for #{name}"
+        new_or_repair_project name unless skip
+      end
+    end
+  end
+
   def cmd_reschedule args
     skip = ARGV.first == "-n"
 
@@ -608,6 +671,9 @@ class OmniFocus
 
       warn "Checking releasing task schedules"
       fix_release_task_schedule projs, tasks, skip
+
+      warn "Repairing any missing release or triage tasks"
+      fix_missing_tasks skip
     end
   end
 
@@ -640,7 +706,7 @@ class OmniFocus
     end
 
     def method_missing m, *a
-      warn [m,*a].inspect
+      warn "%s#method_missing(%s)" % [self.class.name, [m,*a].inspect[1..-2]]
       thing.send m, *a
     end
 
@@ -838,14 +904,26 @@ class OmniFocus
     }
   end
 
+  def _flattened_contexts
+    contexts   = self.omnifocus.flattened_tags.get     rescue nil
+    contexts ||= self.omnifocus.flattened_contexts.get rescue nil
+    contexts
+  end
+
+  def _context name
+    context   = self.omnifocus.flattened_tags[name].get     rescue nil
+    context ||= self.omnifocus.flattened_contexts[name].get rescue nil
+    context
+  end
+
   def all_contexts
-    self.omnifocus.flattened_contexts.get.map { |c|
+    _flattened_contexts.map { |c|
       Context.new omnifocus, c
     }
   end
 
   def context name
-    context = self.omnifocus.flattened_contexts[name].get rescue nil
+    context = _context name
     Context.new omnifocus, context if context
   end
 
