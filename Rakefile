@@ -34,6 +34,10 @@ task :fix => :isolate do
   omnifocus "resch"
 end
 
+task :rev => :isolate do
+  omnifocus "rev"
+end
+
 task :debug => :isolate do
   cmd = ENV["CMD"] || "sync github"
   d = ENV["D"] ? "-d" : nil
