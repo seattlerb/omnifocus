@@ -1,3 +1,17 @@
+=== 2.5.0 / 2019-10-08
+
+* 5 minor enhancements:
+
+  * Extended _context to try tags first.
+  * Extended _flattened_contexts to try tags first.
+  * Extended reschedule subcommand to create missing release/triage tasks where needed.
+  * Refactored _context and _flattened_contexts methods.
+  * Refactored neww project sub-command to new_or_repair_project.
+
+* 1 bug fix:
+
+  * Fixed to work with omnifocus 3 (single context -> multiple tags)
+
 === 2.4.0 / 2019-01-02
 
 * 1 minor enhancement:
