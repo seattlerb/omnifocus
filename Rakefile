@@ -13,7 +13,7 @@ Hoe.spec "omnifocus" do
   license "MIT"
 
   dependency "rb-scpt", "~> 1.0"
-  dependency "mechanize",    "~> 2.0"
+  dependency "mechanize", "~> 2.0"
   dependency "octokit",   "~> 4.14", :development if ENV["TEST"]
 
   pluggable!
@@ -22,7 +22,7 @@ end
 def omnifocus cmd, options = nil
   inc = "-Ilib:../../omnifocus-github/dev/lib:../../omnifocus-redmine/dev/lib"
 
-  ruby "#{options} #{inc} bin/of #{cmd}"
+  ruby "#{inc} bin/of #{cmd} #{options}"
 end
 
 task :sync => :isolate do
