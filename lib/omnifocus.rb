@@ -68,6 +68,8 @@ class OmniFocus
 
   attr_accessor :debug
 
+  attr_accessor :config
+
   ##
   # Load any file matching "omnifocus/*.rb"
 
@@ -91,6 +93,29 @@ class OmniFocus
     @bug_db   = Hash.new { |h,k| h[k] = {} }
     @existing = {}
     self.debug = false
+    self.config = load_or_create_config
+  end
+
+  def load_or_create_config
+    require "yaml"
+
+    path = File.expand_path "~/.omnifocus.yml"
+
+    unless File.exist? path then
+      config = { :exclude => %w[proj_a proj_b proj_c] }
+
+      File.open path, "w" do |f|
+        YAML.dump config, f
+      end
+
+      abort "Created default config in #{path}. Go fill it out."
+    end
+
+    YAML.load File.read path
+  end
+
+  def excluded_projects
+    config[:exclude]
   end
 
   def its # :nodoc:
