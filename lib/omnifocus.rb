@@ -31,6 +31,23 @@ include Appscript
 class OmniFocus
   VERSION = "2.5.0"
 
+  class << self
+    attr_accessor :description, :current_desc
+  end
+
+  self.current_desc = nil
+  self.description  = {}
+
+  def self.method_added name
+    return unless name =~ /^cmd_/
+    description[name] = current_desc || "UNKNOWN"
+    self.current_desc = nil
+  end
+
+  def self.desc str
+    @current_desc = str
+  end
+
   ##
   # bug_db = {
   #   project => {
@@ -48,6 +65,8 @@ class OmniFocus
   # }
 
   attr_reader :existing
+
+  attr_accessor :debug
 
   ##
   # Load any file matching "omnifocus/*.rb"
@@ -71,6 +90,7 @@ class OmniFocus
   def initialize
     @bug_db   = Hash.new { |h,k| h[k] = {} }
     @existing = {}
+    self.debug = false
   end
 
   def its # :nodoc:
@@ -160,7 +180,7 @@ class OmniFocus
   def create_missing_projects
     (bug_db.keys - nerd_projects.projects.name.get).each do |name|
       warn "creating project #{name}"
-      next if $DEBUG
+      next if debug
       make nerd_projects, :project, name
     end
   end
@@ -180,7 +200,7 @@ class OmniFocus
           project.tasks[its.name.contains(bts_id)].get.each do |task|
             if task.completed.get
               puts "Re-opening #{name} # #{bts_id}"
-              next if $DEBUG
+              next if debug
 
               begin
                 task.completed.set false
@@ -193,7 +213,7 @@ class OmniFocus
           project.tasks[its.name.contains(bts_id)].get.each do |task|
             next if task.completed.get
             puts "Removing #{name} # #{bts_id}"
-            next if $DEBUG
+            next if debug
 
             begin
               task.completed.set true
@@ -203,12 +223,12 @@ class OmniFocus
           end
         when Array
           puts "Adding #{name} # #{bts_id}"
-          next if $DEBUG
+          next if debug
           title, url = *value
           make project, :task, title, :note => url
         when Hash
           puts "Adding Detail #{name} # #{bts_id}"
-          next if $DEBUG
+          next if debug
           properties = value.clone
           title = properties.delete(:title)
           make project, :task, title, properties
@@ -231,21 +251,25 @@ class OmniFocus
       reject { |mod| Class === mod }
   end
 
+  desc "Synchronize tasks with all known BTS plugins"
   def cmd_sync args
+    self.debug = args.delete("-d")
+    plugins = self.class._plugins
+
     # do this all up front so we can REALLY fuck shit up with plugins
-    self.class._plugins.each do |plugin|
+    plugins.each do |plugin|
       extend plugin
     end
 
     prepopulate_existing_tasks
 
-    self.class._plugins.each do |plugin|
+    plugins.each do |plugin|
       name = plugin.name.split(/::/).last.downcase
       warn "scanning #{name}"
       send "populate_#{name}_tasks"
     end
 
-    if $DEBUG then
+    if debug then
       require 'pp'
       p :existing
       pp existing
@@ -276,6 +300,7 @@ class OmniFocus
     }
   end
 
+  desc "Create a new project or task"
   def cmd_neww args
     project_name = args.shift
     title = ($stdin.tty? ? args.join(" ") : $stdin.read).strip
@@ -323,10 +348,12 @@ class OmniFocus
     midnight + (n * 3600).to_i
   end
 
+  desc "Print out all active projects"
   def cmd_projects args
     h = Hash.new 0
     n = 0
 
+    # FIX: this seems broken
     self.active_projects.each do |project|
       name  = project.name
       count = project.unscheduled_tasks.size
@@ -371,17 +398,37 @@ class OmniFocus
     end
   end
 
+  desc "Print out versions for omnifocus and plugins"
+  def cmd_version args
+    plugins = self.class._plugins
+
+    width = plugins.map(&:name).map(&:length).max
+    fmt = "  %-#{width}s = v%s"
+
+    puts "Versions:"
+    puts
+
+    puts fmt % ["Omnifocus", VERSION]
+    plugins.each do |klass|
+      puts fmt % [klass, klass::VERSION]
+    end
+  end
+
+  desc "Print out descriptions for all known subcommands"
   def cmd_help args
     methods = OmniFocus.public_instance_methods(false).grep(/^cmd_/)
     methods.map! { |s| s[4..-1] }
+    width = methods.map(&:length).max
 
     puts "Available subcommands:"
 
     methods.sort.each do |m|
-      puts "  #{m}"
+      desc = self.class.description["cmd_#{m}".to_sym]
+      puts "  %-#{width}s : %s." % [m, desc]
     end
   end
 
+  desc "Print out a schedule for a project or context."
   def cmd_schedule args
     name = args.shift or abort "need a context or project name"
 
@@ -392,6 +439,7 @@ class OmniFocus
     print_aggregate_report cp.tasks, :long
   end
 
+  desc "Fix review dates. Use -n to no-op."
   def cmd_fix_review_dates args # TODO: merge into reschedule
     skip = ARGV.first == "-n"
 
@@ -657,6 +705,7 @@ class OmniFocus
     end
   end
 
+  desc "Reschedule reviews & releases, and fix missing tasks. -n to no-op."
   def cmd_reschedule args
     skip = ARGV.first == "-n"
 
@@ -677,6 +726,7 @@ class OmniFocus
     end
   end
 
+  desc "Calculate the amount of estimated time across all tasks. Depressing."
   def cmd_time args
     m = 0
 
@@ -690,6 +740,7 @@ class OmniFocus
     puts "          = %.2f hours" % (m / 60.0)
   end
 
+  desc "Print out an aggregate report for all live projects."
   def cmd_review args
     print_aggregate_report live_projects
   end
