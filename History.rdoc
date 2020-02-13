@@ -1,3 +1,12 @@
+=== 2.6.0 / 2020-02-12
+
+* 4 minor enhancements:
+
+  * Added `of version` subcommand to print out versions for omnifocus and plugins.
+  * Added config file (~/.omnifocus.yml) to exclude syncing named projects.
+  * Added debug ivar to OmniFocus instead of ruby's $DEBUG (noisy!).
+  * Extended `of help` subcommand to print out all known subcommands with descriptions.
+
 === 2.5.0 / 2019-10-08
 
 * 5 minor enhancements:
