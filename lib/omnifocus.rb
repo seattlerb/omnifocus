@@ -590,19 +590,20 @@ class OmniFocus
     unless proj then
       warn "creating #{name} project"
       proj = make nerd_projects, :project, name, :review_interval => rep
-
-      make proj, :task, "Release #{name}", props.merge(:due_date => rel_due_date,
-                                                       :primary_tag => rel_tag)
-      make proj, :task, "Triage #{name}",  props.merge(:due_date => tri_due_date,
-                                                       :primary_tag => tri_tag)
-      return
     end
 
     rel_task = proj.tasks[rel_q].first.get rescue nil
     tri_task = proj.tasks[tri_q].first.get rescue nil
 
-    new_task_from proj, tri_task, "Release #{name}", rel_tag, -min30 unless rel_task
-    new_task_from proj, rel_task, "Triage #{name}",  tri_tag, +min30 unless tri_task
+    if rel_task || tri_task then # repair
+      new_task_from proj, tri_task, "Release #{name}", rel_tag, -min30 unless rel_task
+      new_task_from proj, rel_task, "Triage #{name}",  tri_tag, +min30 unless tri_task
+    else
+      make proj, :task, "Release #{name}", props.merge(:due_date => rel_due_date,
+                                                       :primary_tag => rel_tag)
+      make proj, :task, "Triage #{name}",  props.merge(:due_date => tri_due_date,
+                                                       :primary_tag => tri_tag)
+    end
   end
 
   def new_task_from proj, task, name, tag, offset
