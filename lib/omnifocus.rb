@@ -168,7 +168,7 @@ class OmniFocus
     prefixen = self.class._plugins.map { |klass| klass::PREFIX rescue nil }
     of_tasks = nil
 
-    prefix_re = /^(#{Regexp.union prefixen}(?:-[\w\s.-]+)?\#\d+)/
+    prefix_re = /^(#{Regexp.union prefixen}(?:-[\s\p{L}.-]+)?\#\d+)/
 
     if prefixen.all? then
       of_tasks = all_tasks.find_all { |task|
