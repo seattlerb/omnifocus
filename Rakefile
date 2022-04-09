@@ -20,7 +20,7 @@ Hoe.spec "omnifocus" do
 end
 
 def omnifocus cmd, options = nil
-  inc = "-Ilib:../../omnifocus-github/dev/lib:../../omnifocus-redmine/dev/lib"
+  inc = "-Ilib:../../omnifocus-github/dev/lib"
 
   ruby "#{inc} bin/of #{cmd} #{options}"
 end
