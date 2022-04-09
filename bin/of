@@ -4,6 +4,7 @@ require 'rubygems'
 require 'omnifocus'
 require 'abbrev'
 
+OmniFocus._load_plugins nil
 methods = OmniFocus.public_instance_methods(false).grep(/^cmd_/)
 methods.map! { |s| s[4..-1] }
 

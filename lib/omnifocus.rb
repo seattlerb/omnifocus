@@ -1,6 +1,7 @@
 old_w, $-w = $-w, nil
 require 'rb-scpt'
 $-w = old_w
+require "yaml"
 
 NERD_FOLDER = ENV["OF_FOLDER"] || "nerd"
 
@@ -73,10 +74,9 @@ class OmniFocus
   ##
   # Load any file matching "omnifocus/*.rb"
 
-  def self._load_plugins
+  def self._load_plugins filter = ARGV.shift
     @__loaded__ ||=
       begin
-        filter = ARGV.shift
         loaded = {}
         Gem.find_files("omnifocus/*.rb").each do |path|
           name = File.basename path
@@ -97,8 +97,6 @@ class OmniFocus
   end
 
   def load_or_create_config
-    require "yaml"
-
     path = File.expand_path "~/.omnifocus.yml"
 
     unless File.exist? path then
@@ -126,14 +124,22 @@ class OmniFocus
     @omnifocus ||= Appscript.app('OmniFocus').default_document
   end
 
-  def all_subtasks task
-    [task] + task.tasks.get.flatten.map{|t| all_subtasks(t) }
+  def all_subtasks task, filter = nil
+    if filter then
+      [task] + task.tasks[filter].get.flatten.map{ |t| all_subtasks t, filter }
+    else
+      [task] + task.tasks.get.flatten.map{ |t| all_subtasks t }
+    end
   end
 
   def all_tasks
     # how to filter on active projects. note, this causes sync problems
     # omnifocus.flattened_projects[its.status.eq(:active)].tasks.get.flatten
     omnifocus.flattened_projects.tasks.get.flatten.map{|t| all_subtasks(t) }.flatten
+  end
+
+  def all_active_tasks
+    omnifocus.flattened_projects.tasks[active].get.flatten.map{|t| all_subtasks(t, active) }.flatten
   end
 
   ##
@@ -168,7 +174,7 @@ class OmniFocus
     prefixen = self.class._plugins.map { |klass| klass::PREFIX rescue nil }
     of_tasks = nil
 
-    prefix_re = /^(#{Regexp.union prefixen}(?:-[\s\p{L}.-]+)?\#\d+)/
+    prefix_re = /^(#{Regexp.union prefixen}(?:-[\s\p{L}._-]+)?\#\d+)/
 
     if prefixen.all? then
       of_tasks = all_tasks.find_all { |task|
@@ -183,8 +189,15 @@ class OmniFocus
     end
 
     of_tasks.each do |of_task|
-      ticket_id = of_task.name.get[prefix_re, 1]
+      ticket_id                  = of_task.name.get[prefix_re, 1]
       project                    = of_task.containing_project.name.get
+
+      if existing.key? ticket_id
+        warn "Duplicate task! #{ticket_id}"
+        warn "  deleting: #{of_task.id_.get}"
+        omnifocus.flattened_projects.tasks.delete of_task
+      end
+
       existing[ticket_id]        = project
       bug_db[project][ticket_id] = false
     end
@@ -965,8 +978,12 @@ class OmniFocus
     its.status.eq(:active)
   end
 
+  def active
+    its.completed.eq(false)
+  end
+
   def non_dropped_project
-    its.status.eq(:dropped).not
+    its.status.eq(:dropped_status).not
   end
 
   def all_projects
