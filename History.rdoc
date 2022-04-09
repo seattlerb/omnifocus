@@ -1,3 +1,20 @@
+=== 2.7.0 / 2022-04-09
+
+* 4 minor enhancements:
+
+  * Added #active qualifier
+  * Added all_active_tasks
+  * Added filtering to #all_subtasks.
+  * Added some cleanup to remove duplicate tasks (by ticket_id, first one wins).
+
+* 5 bug fixes:
+
+  * Fix for CJK name support. (inevity)
+  * Fixed #non_dropped_project for newer omnifocus applescript changes.
+  * Fixed creating release/triage tasks for an existing project.
+  * Fixed filtering existing tasks, was ignoring '_' in project names and duplicating tasks.
+  * Force load all plugins in bin/of on start
+
 === 2.6.0 / 2020-02-12
 
 * 4 minor enhancements:

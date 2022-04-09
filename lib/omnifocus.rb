@@ -30,7 +30,7 @@ include Appscript
 # bts_id: a string uniquely identifying a task: SYSTEM(-projectname)?#id
 
 class OmniFocus
-  VERSION = "2.6.0"
+  VERSION = "2.7.0"
 
   class << self
     attr_accessor :description, :current_desc
