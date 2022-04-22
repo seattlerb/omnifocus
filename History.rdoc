@@ -1,3 +1,9 @@
+=== 2.7.1 / 2022-04-22
+
+* 1 bug fix:
+
+  * Fixed (again) /\p{L}/ being _nothing_ like /\w/.
+
 === 2.7.0 / 2022-04-09
 
 * 4 minor enhancements:
