@@ -14,7 +14,7 @@ Hoe.spec "omnifocus" do
 
   dependency "rb-scpt", "~> 1.0"
   dependency "mechanize", "~> 2.0"
-  dependency "octokit",   "~> 4.14", :development if ENV["TEST"]
+  dependency "octokit",   "~> 4.14", :development if ENV["TEST"] || ENV["USER"] == "ryan"
 
   pluggable!
 end
