@@ -36,6 +36,11 @@ class OmniFocus
     @current_desc = str
   end
 
+  def self.method_missing(msg, *args) # TODO: retire, push up to bin/of
+    of = OmniFocus.new
+    of.send("cmd_#{msg}", *args)
+  end
+
   ##
   # bug_db = {
   #   project => {
@@ -305,19 +310,6 @@ class OmniFocus
     create_missing_projects
     update_tasks
   end
-end
-
-class Object
-  def nilify
-    self == :missing_value ? nil : self
-  end
-end
-
-class OmniFocus
-  def self.method_missing(msg, *args)
-    of = OmniFocus.new
-    of.send("cmd_#{msg}", *args)
-  end
 
   def top hash, n=10
     hash.sort_by { |k,v| [-v, k] }.first(n).map { |k,v|
@@ -453,7 +445,7 @@ class OmniFocus
     end
   end
 
-  desc "Print out a schedule for a project or context."
+  desc "Print out a schedule for a project or context"
   def cmd_schedule args
     name = args.shift or abort "need a context or project name"
 
@@ -464,7 +456,7 @@ class OmniFocus
     print_aggregate_report cp.tasks, :long
   end
 
-  desc "Fix review dates. Use -n to no-op."
+  desc "Fix review dates. Use -n to no-op"
   def cmd_fix_review_dates args # TODO: merge into reschedule
     skip = ARGV.first == "-n"
 
@@ -731,7 +723,7 @@ class OmniFocus
     end
   end
 
-  desc "Reschedule reviews & releases, and fix missing tasks. -n to no-op."
+  desc "Reschedule reviews & releases, and fix missing tasks. -n to no-op"
   def cmd_reschedule args
     skip = ARGV.first == "-n"
 
@@ -752,7 +744,7 @@ class OmniFocus
     end
   end
 
-  desc "Calculate the amount of estimated time across all tasks. Depressing."
+  desc "Calculate the amount of estimated time across all tasks. Depressing"
   def cmd_time args
     m = 0
 
@@ -766,7 +758,7 @@ class OmniFocus
     puts "          = %.2f hours" % (m / 60.0)
   end
 
-  desc "Print out an aggregate report for all live projects."
+  desc "Print out an aggregate report for all live projects"
   def cmd_review args
     print_aggregate_report live_projects
   end
@@ -1038,6 +1030,12 @@ class OmniFocus
     def tasks
       thing.tasks[active].get.map { |t| Task.new omnifocus, t }
     end
+  end
+end
+
+class Object
+  def nilify
+    self == :missing_value ? nil : self
   end
 end
 
