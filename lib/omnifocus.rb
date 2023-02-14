@@ -771,103 +771,6 @@ class OmniFocus
     print_aggregate_report live_projects
   end
 
-  class Thingy
-    attr_accessor :omnifocus, :thing
-    def initialize of, thing
-      @omnifocus = of
-      @thing = thing
-    end
-
-    def active
-      its.completed.eq(false)
-    end
-
-    def method_missing m, *a
-      warn "%s#method_missing(%s)" % [self.class.name, [m,*a].inspect[1..-2]]
-      thing.send m, *a
-    end
-
-    def name
-      thing.name.get
-    end
-
-    def id
-      thing.id_.get
-    end
-
-    def inspect
-      "#{self.class}[#{self.id}]"
-    end
-  end
-
-  class Project < Thingy
-    def unscheduled
-      its.due_date.eq(:missing_value)
-    end
-
-    def unscheduled_tasks
-      thing.tasks[active.and(unscheduled)].get.map { |t|
-        Task.new omnifocus, t
-      }
-    end
-
-    def review_interval
-      thing.review_interval.get
-    end
-
-    def review_interval= h
-      thing.review_interval.set :to => h
-    end
-
-    def next_review_date
-      thing.next_review_date.get
-    end
-
-    def tasks
-      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
-    end
-  end
-
-  class Task < Thingy
-    def project
-      Project.new omnifocus, thing.containing_project.get
-    end
-
-    def start_date= t
-      thing.start_date.set t
-    rescue
-      thing.defer_date.set t
-    end
-
-    def start_date
-      thing.start_date.get.nilify
-    rescue
-      thing.defer_date.get.nilify
-    end
-
-    def due_date= t
-      thing.due_date.set t
-    end
-
-    def due_date
-      thing.due_date.get.nilify
-    end
-
-    def repetition
-      thing.repetition.get.nilify
-    end
-
-    def completed
-      thing.completed.get.nilify
-    end
-  end
-
-  class Context < Thingy
-    def tasks
-      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
-    end
-  end
-
   def print_aggregate_report collection, long = false
     h, p = self.aggregate collection
 
@@ -1038,6 +941,103 @@ class OmniFocus
     yield
   ensure
     self.omnifocus.will_autosave.set true
+  end
+
+  class Thingy
+    attr_accessor :omnifocus, :thing
+    def initialize of, thing
+      @omnifocus = of
+      @thing = thing
+    end
+
+    def active
+      its.completed.eq(false)
+    end
+
+    def method_missing m, *a
+      warn "%s#method_missing(%s)" % [self.class.name, [m,*a].inspect[1..-2]]
+      thing.send m, *a
+    end
+
+    def name
+      thing.name.get
+    end
+
+    def id
+      thing.id_.get
+    end
+
+    def inspect
+      "#{self.class}[#{self.id}]"
+    end
+  end
+
+  class Project < Thingy
+    def unscheduled
+      its.due_date.eq(:missing_value)
+    end
+
+    def unscheduled_tasks
+      thing.tasks[active.and(unscheduled)].get.map { |t|
+        Task.new omnifocus, t
+      }
+    end
+
+    def review_interval
+      thing.review_interval.get
+    end
+
+    def review_interval= h
+      thing.review_interval.set :to => h
+    end
+
+    def next_review_date
+      thing.next_review_date.get
+    end
+
+    def tasks
+      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+    end
+  end
+
+  class Task < Thingy
+    def project
+      Project.new omnifocus, thing.containing_project.get
+    end
+
+    def start_date= t
+      thing.start_date.set t
+    rescue
+      thing.defer_date.set t
+    end
+
+    def start_date
+      thing.start_date.get.nilify
+    rescue
+      thing.defer_date.get.nilify
+    end
+
+    def due_date= t
+      thing.due_date.set t
+    end
+
+    def due_date
+      thing.due_date.get.nilify
+    end
+
+    def repetition
+      thing.repetition.get.nilify
+    end
+
+    def completed
+      thing.completed.get.nilify
+    end
+  end
+
+  class Context < Thingy
+    def tasks
+      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+    end
   end
 end
 
