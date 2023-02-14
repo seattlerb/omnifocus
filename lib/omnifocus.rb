@@ -36,6 +36,36 @@ class OmniFocus
     @current_desc = str
   end
 
+  ##
+  # Load any file matching "omnifocus/*.rb"
+
+  def self._load_plugins filter = ARGV.shift
+    @__loaded__ ||=
+      begin
+        loaded = {}
+        Gem.find_files("omnifocus/*.rb").each do |path|
+          name = File.basename path
+          next if loaded[name]
+          next unless path.index filter if filter
+          require path
+          loaded[name] = true
+        end
+        true
+      end
+  end
+
+  ##
+  # Return all the plugin modules that have been loaded.
+
+  def self._plugins
+    _load_plugins
+
+    constants.
+      reject { |mod| mod =~ /^[A-Z_]+$/ }.
+      map    { |mod| const_get mod }.
+      reject { |mod| Class === mod }
+  end
+
   def self.method_missing(msg, *args) # TODO: retire, push up to bin/of
     of = OmniFocus.new
     of.send("cmd_#{msg}", *args)
@@ -62,24 +92,6 @@ class OmniFocus
   attr_accessor :debug
 
   attr_accessor :config
-
-  ##
-  # Load any file matching "omnifocus/*.rb"
-
-  def self._load_plugins filter = ARGV.shift
-    @__loaded__ ||=
-      begin
-        loaded = {}
-        Gem.find_files("omnifocus/*.rb").each do |path|
-          name = File.basename path
-          next if loaded[name]
-          next unless path.index filter if filter
-          require path
-          loaded[name] = true
-        end
-        true
-      end
-  end
 
   def initialize
     @bug_db   = Hash.new { |h,k| h[k] = {} }
@@ -267,18 +279,6 @@ class OmniFocus
         end
       end
     end
-  end
-
-  ##
-  # Return all the plugin modules that have been loaded.
-
-  def self._plugins
-    _load_plugins
-
-    constants.
-      reject { |mod| mod =~ /^[A-Z_]+$/ }.
-      map    { |mod| const_get mod }.
-      reject { |mod| Class === mod }
   end
 
   desc "Synchronize tasks with all known BTS plugins"
