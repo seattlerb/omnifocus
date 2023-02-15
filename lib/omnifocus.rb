@@ -63,7 +63,8 @@ class OmniFocus
     constants.
       reject { |mod| mod =~ /^[A-Z_]+$/ }.
       map    { |mod| const_get mod }.
-      reject { |mod| Class === mod }
+      reject { |mod| Class === mod }.
+      select { |mod| mod.const_defined? :PREFIX }
   end
 
   def self.method_missing(msg, *args) # TODO: retire, push up to bin/of
@@ -120,10 +121,6 @@ class OmniFocus
     config[:exclude]
   end
 
-  def its # :nodoc:
-    Appscript.its
-  end
-
   def omnifocus
     @omnifocus ||= Appscript.app('OmniFocus').default_document
   end
@@ -138,12 +135,12 @@ class OmniFocus
 
   def all_tasks
     # how to filter on active projects. note, this causes sync problems
-    # omnifocus.flattened_projects[its.status.eq(:active)].tasks.get.flatten
+    # omnifocus.flattened_projects[q_active].tasks.get.flatten
     omnifocus.flattened_projects.tasks.get.flatten.map{|t| all_subtasks(t) }.flatten
   end
 
   def all_active_tasks
-    omnifocus.flattened_projects.tasks[active].get.flatten.map{|t| all_subtasks(t, active) }.flatten
+    omnifocus.flattened_projects.tasks[q_active].get.flatten.map{|t| all_subtasks(t, q_active) }.flatten
   end
 
   ##
@@ -239,7 +236,7 @@ class OmniFocus
       tickets.each do |bts_id, value|
         case value
         when true
-          project.tasks[its.name.contains(bts_id)].get.each do |task|
+          project.tasks[q_nameish(bts_id)].get.each do |task|
             if task.completed.get
               puts "Re-opening #{name} # #{bts_id}"
               next if debug
@@ -252,7 +249,7 @@ class OmniFocus
             end
           end
         when false
-          project.tasks[its.name.contains(bts_id)].get.each do |task|
+          project.tasks[q_nameish(bts_id)].get.each do |task|
             next if task.completed.get
             puts "Removing #{name} # #{bts_id}"
             next if debug
@@ -340,13 +337,13 @@ class OmniFocus
     when "project" then
       new_or_repair_project title
     else
-      project = omnifocus.flattened_projects[its.name.eq(project_name)].first.get
+      project = omnifocus.flattened_projects[q_named(project_name)].first.get
       make project, :task, title
       puts "created task in #{project_name}: #{title}"
     end
   end
 
-  def weekly n=1
+  def weekly(n=1)
     {
       :unit => :week,
       :steps => n,
@@ -391,7 +388,7 @@ class OmniFocus
   end
 
   def cmd_wtf args
-    filter = its.completed.eq(false).and(its.repetition.eq(:missing_value))
+    filter = q_not_completed.and q_non_repeating
 
     h1 = Hash.new 0
     _flattened_contexts.each do |context|
@@ -571,9 +568,6 @@ class OmniFocus
 
     min30 = 30 * 60
 
-    rel_q = its.completed.eq(false).and(its.name.begins_with("Release"))
-    tri_q = its.completed.eq(false).and(its.name.begins_with("Triage"))
-
     rel_tag = context("Releasing").thing
     tri_tag = context("Triaging").thing
 
@@ -584,8 +578,8 @@ class OmniFocus
       proj = make nerd_projects, :project, name, :review_interval => rep
     end
 
-    rel_task = proj.tasks[rel_q].first.get rescue nil
-    tri_task = proj.tasks[tri_q].first.get rescue nil
+    rel_task = proj.tasks[q_release].first.get rescue nil
+    tri_task = proj.tasks[q_triage].first.get rescue nil
 
     if rel_task || tri_task then # repair
       new_task_from proj, tri_task, "Release #{name}", rel_tag, -min30 unless rel_task
@@ -699,14 +693,11 @@ class OmniFocus
   end
 
   def fix_missing_tasks skip
-    q_rel = its.completed.eq(false).and(its.name.begins_with("Release"))
-    q_tri = its.completed.eq(false).and(its.name.begins_with("Triage"))
-
     nerd_projects.projects.get.each do |proj|
       name = proj.name.get
 
-      rel = proj.tasks[q_rel].first.get rescue nil
-      tri = proj.tasks[q_tri].first.get rescue nil
+      rel = proj.tasks[q_release].first.get rescue nil
+      tri = proj.tasks[q_triage].first.get rescue nil
 
       case [!!rel, !!tri]
       when [true, true] then
@@ -856,18 +847,6 @@ class OmniFocus
     end
   end
 
-  def active_project
-    its.status.eq(:active)
-  end
-
-  def active
-    its.completed.eq(false)
-  end
-
-  def non_dropped_project
-    its.status.eq(:dropped_status).not
-  end
-
   def all_projects
     self.omnifocus.flattened_projects.get.map { |p|
       Project.new omnifocus, p
@@ -875,7 +854,7 @@ class OmniFocus
   end
 
   def live_projects
-    self.omnifocus.flattened_projects[non_dropped_project].get.map { |p|
+    self.omnifocus.flattened_projects[q_non_dropped_project].get.map { |p|
       Project.new omnifocus, p
     }
   end
@@ -909,13 +888,9 @@ class OmniFocus
   end
 
   def active_projects
-    self.omnifocus.flattened_projects[active_project].get.map { |p|
+    self.omnifocus.flattened_projects[q_active_project].get.map { |p|
       Project.new omnifocus, p
     }
-  end
-
-  def regular_tasks
-    (its.value.class_.eq(:item).not).and(its.value.class_.eq(:folder).not)
   end
 
   def window
@@ -923,7 +898,7 @@ class OmniFocus
   end
 
   def selected_tasks
-    window.content.selected_trees[regular_tasks].value.get.map { |t|
+    window.content.selected_trees[q_regular_tasks].value.get.map { |t|
       Task.new self, t
     }
   end
@@ -965,12 +940,14 @@ class OmniFocus
   end
 
   class Project < Thingy
-    def unscheduled
-      its.due_date.eq(:missing_value)
+    def unscheduled_tasks
+      thing.tasks[q_not_completed.and(q_unscheduled)].get.map { |t|
+        Task.new omnifocus, t
+      }
     end
 
-    def unscheduled_tasks
-      thing.tasks[active.and(unscheduled)].get.map { |t|
+    def scheduled_tasks
+      thing.tasks[q_not_completed.and(q_scheduled)].get.map { |t|
         Task.new omnifocus, t
       }
     end
@@ -988,7 +965,7 @@ class OmniFocus
     end
 
     def tasks
-      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+      thing.tasks[q_not_completed].get.map { |t| Task.new omnifocus, t }
     end
   end
 
@@ -1031,6 +1008,69 @@ class OmniFocus
       thing.tasks[active].get.map { |t| Task.new omnifocus, t }
     end
   end
+
+  module Queries
+    def its # :nodoc:
+      Appscript.its
+    end
+
+    def q_active # TODO: one of these is redundant, right?
+      raise "nah"
+      its.status.eq :active
+    end
+
+    def q_active_project # TODO: one of these is redundant, right?
+      raise "nah2"
+      its.status.eq :active_status
+    end
+
+    def q_named name
+      its.name.eq name
+    end
+
+    def q_nameish name # TODO: better name
+      its.name.begins_with name
+    end
+
+    def q_non_dropped_project
+      its.status.eq(:dropped_status).not
+    end
+
+    def q_non_repeating
+      its.repetition.eq :missing_value
+    end
+
+    def q_not_completed
+      its.completed.eq false
+    end
+
+    def q_active_unique
+      q_not_completed.and q_non_repeating
+    end
+
+    def q_release
+      q_not_completed.and q_named "Release"
+    end
+
+    def q_triage
+      q_not_completed.and q_named "Triage"
+    end
+
+    def q_regular_tasks
+      its.value.class_.eq(:item).not
+        .and its.value.class_.eq(:folder).not
+    end
+
+    def q_scheduled
+      q_unscheduled.not
+    end
+
+    def q_unscheduled
+      its.due_date.eq(:missing_value)
+    end
+  end
+
+  include Queries # TODO: move?
 end
 
 class Object
