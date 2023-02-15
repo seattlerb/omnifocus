@@ -917,10 +917,6 @@ class OmniFocus
       @thing = thing
     end
 
-    def active
-      its.completed.eq(false)
-    end
-
     def method_missing m, *a
       warn "%s#method_missing(%s)" % [self.class.name, [m,*a].inspect[1..-2]]
       thing.send m, *a
@@ -1005,7 +1001,7 @@ class OmniFocus
 
   class Context < Thingy
     def tasks
-      thing.tasks[active].get.map { |t| Task.new omnifocus, t }
+      thing.tasks[q_not_completed].get.map { |t| Task.new omnifocus, t }
     end
   end
 
