@@ -308,12 +308,6 @@ class OmniFocus
     update_tasks
   end
 
-  def top hash, n=10
-    hash.sort_by { |k,v| [-v, k] }.first(n).map { |k,v|
-      "%4d %s" % [v,k[0,21]]
-    }
-  end
-
   desc "Create a new project or task"
   def cmd_neww args
     project_name = args.shift
@@ -387,26 +381,37 @@ class OmniFocus
     end
   end
 
-  def cmd_wtf args
-    filter = q_not_completed.and q_non_repeating
+  def top hash, n=10
+    hash.sort_by { |k,v| [-v, k] }.first(n).map { |k,v|
+      "%4d %s" % [v,k[0,21]]
+    }
+  end
 
+  desc "Print out top 10 projects+contexts, contexts, and projects"
+  def cmd_top args
+    # available non-repeating tasks per project & context
     h1 = Hash.new 0
     _flattened_contexts.each do |context|
-      context.tasks[filter].get.each do |task|
-        h1[[task.containing_project.name.get, context.name.get].join(": ")] += 1
+      context_name = context.name.get
+      context.tasks[q_active_unique].get.each do |task|
+        h1[[task.containing_project.name.get, context_name].join(": ")] += 1
       end
     end
 
+    # available non-repeating tasks per context
     h2 = Hash.new 0
     _flattened_contexts.each do |context|
-      h2[context.name.get] += context.tasks[filter].count
+      h2[context.name.get] += context.tasks[q_active_unique].count
     end
 
+    # available non-repeating tasks per project
     h3 = Hash.new 0
-    omnifocus.flattened_projects.get.each do |project|
-      h3[project.name.get] += project.tasks[filter].count
+    self.omnifocus.flattened_projects.get.each do |project|
+      h3[project.name.get] += project.flattened_tasks[q_active_unique].count
     end
 
+    puts "%-26s%-26s%-26s" % ["#### Proj+Context", "#### Context", "#### Project"]
+    puts "-" * 26 * 3
     top(h1).zip(top(h2), top(h3)).each do |a|
       puts "%-26s%-26s%-26s" % a
     end
