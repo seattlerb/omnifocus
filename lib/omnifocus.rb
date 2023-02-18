@@ -134,13 +134,11 @@ class OmniFocus
   end
 
   def all_tasks
-    # how to filter on active projects. note, this causes sync problems
-    # omnifocus.flattened_projects[q_active].tasks.get.flatten
-    omnifocus.flattened_projects.tasks.get.flatten.map{|t| all_subtasks(t) }.flatten
+    self.omnifocus.flattened_tasks.get.map { |t| Task.new self.omnifocus, t }
   end
 
   def all_active_tasks
-    omnifocus.flattened_projects.tasks[q_active].get.flatten.map{|t| all_subtasks(t, q_active) }.flatten
+    self.omnifocus.flattened_tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
   end
 
   ##
@@ -155,12 +153,12 @@ class OmniFocus
 
   def nerd_projects
     unless defined? @nerd_projects then
-      @nerd_projects = omnifocus.folders[NERD_FOLDER]
+      @nerd_projects = self.omnifocus.folders[NERD_FOLDER]
 
       begin
         @nerd_projects.get
       rescue
-        make omnifocus, :folder, NERD_FOLDER
+        make self.omnifocus, :folder, NERD_FOLDER
       end
     end
 
@@ -196,7 +194,7 @@ class OmniFocus
       if existing.key? ticket_id
         warn "Duplicate task! #{ticket_id}"
         warn "  deleting: #{of_task.id_.get}"
-        omnifocus.flattened_projects.tasks.delete of_task
+        self.omnifocus.flattened_projects.tasks.delete of_task
       end
 
       existing[ticket_id]        = project
@@ -315,7 +313,7 @@ class OmniFocus
 
     unless project_name && ! title.empty? then
       cmd = File.basename $0
-      projects = omnifocus.flattened_projects.name.get.sort_by(&:downcase)
+      projects = self.omnifocus.flattened_projects.name.get.sort_by(&:downcase)
 
       warn "usage: #{cmd} new project_name title        - create a project task"
       warn "       #{cmd} new nil          title        - create an inbox task"
@@ -327,11 +325,11 @@ class OmniFocus
 
     case project_name.downcase
     when "nil" then
-      omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
+      self.omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
     when "project" then
       new_or_repair_project title
     else
-      project = omnifocus.flattened_projects[q_named(project_name)].first.get
+      project = self.omnifocus.flattened_projects[q_named(project_name)].first.get
       make project, :task, title
       puts "created task in #{project_name}: #{title}"
     end
@@ -361,10 +359,9 @@ class OmniFocus
     h = Hash.new 0
     n = 0
 
-    # FIX: this seems broken
-    self.active_projects.each do |project|
+    self.active_nerd_projects.each do |project|
       name  = project.name
-      count = project.unscheduled_tasks.size
+      count = project.flattened_tasks.count
       ri    = project.review_interval
       time  = "#{ri[:steps]}#{ri[:unit].to_s[0,1]}"
 
@@ -378,6 +375,27 @@ class OmniFocus
     puts
     h.sort_by { |name, count| -count }.each do |name, count|
       puts "%5d: %3d%%: %s" % [count, 100 * count / n, name]
+    end
+
+    t = Hash.new { |h,k| h[k] = [] }
+
+    self.active_nerd_projects.each do |project|
+      ri    = project.review_interval
+      time  = "#{ri[:steps]}#{ri[:unit].to_s[0,1]}"
+
+      t[time] << project.name
+    end
+
+    puts
+    t.sort.each do |k, vs|
+      wrapped = vs.sort
+        .join(" ")              # make one string
+        .scan(/.{,70}(?: |$)/)  # break into 70 char lines
+        .join("\n    ")         # wrap w/ whitespace to indent
+        .strip
+
+      puts "%s: %s" % [k, wrapped]
+      puts
     end
   end
 
@@ -854,13 +872,17 @@ class OmniFocus
 
   def all_projects
     self.omnifocus.flattened_projects.get.map { |p|
-      Project.new omnifocus, p
+      Project.new self.omnifocus, p
     }
+  end
+
+  def nerd_folder
+    self.omnifocus.folders[NERD_FOLDER]
   end
 
   def live_projects
     self.omnifocus.flattened_projects[q_non_dropped_project].get.map { |p|
-      Project.new omnifocus, p
+      Project.new self.omnifocus, p
     }
   end
 
@@ -878,23 +900,29 @@ class OmniFocus
 
   def all_contexts
     _flattened_contexts.map { |c|
-      Context.new omnifocus, c
+      Context.new self.omnifocus, c
     }
   end
 
   def context name
     context = _context name
-    Context.new omnifocus, context if context
+    Context.new self.omnifocus, context if context
   end
 
   def project name
     project = self.omnifocus.flattened_projects[name].get
-    Project.new omnifocus, project if project
+    Project.new self.omnifocus, project if project
   end
 
   def active_projects
     self.omnifocus.flattened_projects[q_active_project].get.map { |p|
-      Project.new omnifocus, p
+      Project.new self.omnifocus, p
+    }
+  end
+
+  def active_nerd_projects
+    nerd_folder.flattened_projects[q_active_project].get.map { |p|
+      Project.new self.omnifocus, p
     }
   end
 
@@ -943,13 +971,13 @@ class OmniFocus
   class Project < Thingy
     def unscheduled_tasks
       thing.tasks[q_not_completed.and(q_unscheduled)].get.map { |t|
-        Task.new omnifocus, t
+        Task.new self.omnifocus, t
       }
     end
 
     def scheduled_tasks
       thing.tasks[q_not_completed.and(q_scheduled)].get.map { |t|
-        Task.new omnifocus, t
+        Task.new self.omnifocus, t
       }
     end
 
@@ -966,13 +994,18 @@ class OmniFocus
     end
 
     def tasks
-      thing.tasks[q_not_completed].get.map { |t| Task.new omnifocus, t }
+      thing.tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
+    end
+
+    def flattened_tasks
+      thing.flattened_tasks[q_not_completed].get
+        .map { |t| Task.new self.omnifocus, t }
     end
   end
 
   class Task < Thingy
     def project
-      Project.new omnifocus, thing.containing_project.get
+      Project.new self.omnifocus, thing.containing_project.get
     end
 
     def start_date= t
@@ -1006,7 +1039,7 @@ class OmniFocus
 
   class Context < Thingy
     def tasks
-      thing.tasks[q_not_completed].get.map { |t| Task.new omnifocus, t }
+      thing.tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
     end
   end
 
@@ -1015,13 +1048,7 @@ class OmniFocus
       Appscript.its
     end
 
-    def q_active # TODO: one of these is redundant, right?
-      raise "nah"
-      its.status.eq :active
-    end
-
-    def q_active_project # TODO: one of these is redundant, right?
-      raise "nah2"
+    def q_active_project
       its.status.eq :active_status
     end
 
@@ -1071,7 +1098,8 @@ class OmniFocus
     end
   end
 
-  include Queries # TODO: move?
+  include Queries
+  Thingy.send :include, Queries
 end
 
 class Object
