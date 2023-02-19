@@ -133,12 +133,16 @@ class OmniFocus
     end
   end
 
+  def _wrap klass, things
+    things.map { |thing| klass.new self.omnifocus, thing }
+  end
+
   def all_tasks
-    self.omnifocus.flattened_tasks.get.map { |t| Task.new self.omnifocus, t }
+    _wrap Task, self.omnifocus.flattened_tasks.get
   end
 
   def all_active_tasks
-    self.omnifocus.flattened_tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
+    _wrap Task, self.omnifocus.flattened_tasks[q_not_completed].get
   end
 
   ##
@@ -871,9 +875,7 @@ class OmniFocus
   end
 
   def all_projects
-    self.omnifocus.flattened_projects.get.map { |p|
-      Project.new self.omnifocus, p
-    }
+    _wrap Project, self.omnifocus.flattened_projects.get
   end
 
   def nerd_folder
@@ -881,27 +883,20 @@ class OmniFocus
   end
 
   def live_projects
-    self.omnifocus.flattened_projects[q_non_dropped_project].get.map { |p|
-      Project.new self.omnifocus, p
-    }
+    _wrap Project, self.omnifocus.flattened_projects[q_non_dropped_project].get
   end
 
+  # TODO: globally rename context to tags
   def _flattened_contexts
-    contexts   = self.omnifocus.flattened_tags.get     rescue nil
-    contexts ||= self.omnifocus.flattened_contexts.get rescue nil
-    contexts
+    self.omnifocus.flattened_tags.get
   end
 
   def _context name
-    context   = self.omnifocus.flattened_tags[name].get     rescue nil
-    context ||= self.omnifocus.flattened_contexts[name].get rescue nil
-    context
+    self.omnifocus.flattened_tags[name].get
   end
 
   def all_contexts
-    _flattened_contexts.map { |c|
-      Context.new self.omnifocus, c
-    }
+    _wrap Context, _flattened_contexts
   end
 
   def context name
@@ -915,15 +910,11 @@ class OmniFocus
   end
 
   def active_projects
-    self.omnifocus.flattened_projects[q_active_project].get.map { |p|
-      Project.new self.omnifocus, p
-    }
+    _wrap Project, self.omnifocus.flattened_projects[q_active_project].get
   end
 
   def active_nerd_projects
-    nerd_folder.flattened_projects[q_active_project].get.map { |p|
-      Project.new self.omnifocus, p
-    }
+    _wrap Project, nerd_folder.flattened_projects[q_active_project].get
   end
 
   def window
@@ -931,9 +922,7 @@ class OmniFocus
   end
 
   def selected_tasks
-    window.content.selected_trees[q_regular_tasks].value.get.map { |t|
-      Task.new self, t
-    }
+    _wrap Task, window.content.selected_trees[q_regular_tasks].value.get
   end
 
   def no_autosave_during
@@ -966,19 +955,19 @@ class OmniFocus
     def inspect
       "#{self.class}[#{self.id}]"
     end
+
+    def _wrap klass, things
+      things.map { |thing| klass.new self.omnifocus, thing }
+    end
   end
 
   class Project < Thingy
     def unscheduled_tasks
-      thing.tasks[q_not_completed.and(q_unscheduled)].get.map { |t|
-        Task.new self.omnifocus, t
-      }
+      _wrap Task, thing.tasks[q_not_completed.and(q_unscheduled)].get
     end
 
     def scheduled_tasks
-      thing.tasks[q_not_completed.and(q_scheduled)].get.map { |t|
-        Task.new self.omnifocus, t
-      }
+      _wrap Task, thing.tasks[q_not_completed.and(q_scheduled)].get
     end
 
     def review_interval
@@ -994,12 +983,11 @@ class OmniFocus
     end
 
     def tasks
-      thing.tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
+      _wrap Task, thing.tasks[q_not_completed].get
     end
 
     def flattened_tasks
-      thing.flattened_tasks[q_not_completed].get
-        .map { |t| Task.new self.omnifocus, t }
+      _wrap Task, thing.flattened_tasks[q_not_completed].get
     end
   end
 
@@ -1039,7 +1027,7 @@ class OmniFocus
 
   class Context < Thingy
     def tasks
-      thing.tasks[q_not_completed].get.map { |t| Task.new self.omnifocus, t }
+      _wrap Task, thing.tasks[q_not_completed].get
     end
   end
 
