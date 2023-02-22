@@ -125,7 +125,7 @@ class OmniFocus
     @omnifocus ||= Appscript.app('OmniFocus').default_document
   end
 
-  def all_subtasks task, filter = nil
+  def all_subtasks task, filter = nil # TOOD: retire
     if filter then
       [task] + task.tasks[filter].get.flatten.map{ |t| all_subtasks t, filter }
     else
@@ -502,7 +502,7 @@ class OmniFocus
 
         a.each_with_index do |proj, i|
           if proj.next_review_date != day then
-            warn "Fixing #{unit} #{proj.name} to #{day}"
+            warn "Fixing #{unit} #{proj.name} review date to #{day}"
             proj.thing.next_review_date.set day unless skip
           end
 
@@ -556,6 +556,7 @@ class OmniFocus
 
   def aggregate_releases
     rels = context "Releasing"
+    tris = context "Triaging"
 
     tasks = Hash.new { |h,k| h[k] = [] } # name => tasks
     projs = Hash.new { |h,k| h[k] = [] } # step => projs
@@ -564,6 +565,11 @@ class OmniFocus
       proj = task.project
       tasks[proj.name] << task
       projs[proj.review_interval[:steps]] << proj
+    end
+
+    tris.tasks.each do |task|
+      proj = task.project
+      tasks[proj.name] << task
     end
 
     projs.each do |k, a|
@@ -576,10 +582,10 @@ class OmniFocus
     return rels, tasks, projs
   end
 
-  def new_or_repair_project name
+  def new_or_repair_project name, n_weeks = 1
     warn "project #{name}"
 
-    rep          = weekly
+    rep          = weekly n_weeks
     start_date   = hour 0
     rel_due_date = hour 16
     tri_due_date = hour 16.5
@@ -591,7 +597,7 @@ class OmniFocus
 
     min30 = 30 * 60
 
-    rel_tag = context("Releasing").thing
+    rel_tag = context("Releasing").thing # TODO: remove? should have the methods
     tri_tag = context("Triaging").thing
 
     proj = nerd_projects.projects[name].get rescue nil
@@ -702,15 +708,31 @@ class OmniFocus
 
               case task.name
               when /Release/ then
+                warn "  Fixing #{p.name} release to #{date.strftime "%Y-%m-%d"}"
+                next if skip
                 task.start_date = date
                 task.due_date = due_date1
               when /Triage/ then
+                warn "  Fixing #{p.name} triage to #{date.strftime "%Y-%m-%d"}"
+                next if skip
                 task.start_date = date
                 task.due_date = due_date2
               else
                 warn "Unknown task name: #{task.name}"
               end
             end
+          end
+
+          rel = p.tasks.find { |t| t.name.start_with? "Release" }
+
+          if rel && p.next_review_date.to_date != rel.due_date.to_date then
+            pp NEEDS_FIXING:[p.name,
+                             p.next_review_date.to_date.to_s,
+                             rel.due_date.to_date.to_s]
+
+            next if skip
+
+            p.next_review_date = rel.due_date.to_date
           end
         end
       end
@@ -978,6 +1000,10 @@ class OmniFocus
 
     def next_review_date
       thing.next_review_date.get
+    end
+
+    def next_review_date= date
+      thing.next_review_date.set to: date
     end
 
     def tasks
