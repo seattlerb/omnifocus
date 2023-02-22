@@ -203,14 +203,6 @@ class OmniFocus
   end
 
   ##
-  # Returns the mechanize agent
-
-  def mechanize
-    require 'mechanize'
-    @mechanize ||= Mechanize.new
-  end
-
-  ##
   # Create any projects in bug_db that aren't in omnifocus, add under
   # the nerd folder.
 

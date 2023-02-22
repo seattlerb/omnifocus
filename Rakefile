@@ -12,7 +12,6 @@ Hoe.spec "omnifocus" do
   license "MIT"
 
   dependency "rb-scpt", "~> 1.0"
-  dependency "mechanize", "~> 2.0"
   dependency "octokit",   "~> 4.14", :development if ENV["TEST"] || ENV["USER"] == "ryan"
 
   pluggable!
