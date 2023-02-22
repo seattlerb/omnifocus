@@ -156,17 +156,13 @@ class OmniFocus
   # Get all projects under the nerd folder
 
   def nerd_projects
-    unless defined? @nerd_projects then
-      @nerd_projects = self.omnifocus.folders[NERD_FOLDER]
+    return @nerd_projects if defined? @nerd_projects
 
-      begin
-        @nerd_projects.get
-      rescue
-        make self.omnifocus, :folder, NERD_FOLDER
-      end
+    unless self.omnifocus.folders.name.get.include? NERD_FOLDER then
+      make self.omnifocus, :folder, NERD_FOLDER
     end
 
-    @nerd_projects
+    @nerd_projects = nerd_folder
   end
 
   ##
@@ -635,26 +631,28 @@ class OmniFocus
 
   def fix_project_review_intervals rels, skip
     rels.tasks.each do |task|
-      begin
-        proj = task.project
-
-        t_ri = task.repetition[:steps]
-        p_ri = proj.review_interval[:steps]
-
-        if t_ri != p_ri then
-          warn "Fixing #{task.name} to #{p_ri} weeks"
-
-          rep = {
-                 :recurrence        => "FREQ=WEEKLY;INTERVAL=#{p_ri}",
-                 :repetition_method => :fixed_repetition,
-                }
-
-          task.thing.repetition_rule.set :to => rep unless skip
-        end
-      rescue => e
-        warn "ERROR: skipping '#{task.name}' in '#{proj.name}': #{e.message}"
-      end
+      fix_project_review_interval task unless skip
     end
+  end
+
+  def fix_project_review_interval task
+    proj = task.project
+
+    t_ri = task.repetition[:steps]
+    p_ri = proj.review_interval[:steps]
+
+    if t_ri != p_ri then
+      warn "Fixing #{task.name} to #{p_ri} weeks"
+
+      rep = {
+        :recurrence        => "FREQ=WEEKLY;INTERVAL=#{p_ri}",
+        :repetition_method => :fixed_repetition,
+      }
+
+      task.thing.repetition_rule.set :to => rep
+    end
+  rescue => e
+    warn "ERROR: skipping '#{task.name}' in '#{proj.name}': #{e.message}"
   end
 
   def fix_release_task_names projs, tasks, skip
