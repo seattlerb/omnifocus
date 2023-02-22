@@ -8,7 +8,6 @@ Hoe.plugin :isolate
 
 Hoe.spec "omnifocus" do
   developer "Ryan Davis", "ryand-ruby@zenspider.com"
-  developer "aja", "kushali@rubyforge.org"
 
   license "MIT"
 
