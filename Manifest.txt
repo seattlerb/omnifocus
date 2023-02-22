@@ -7,3 +7,4 @@ bin/of
 bin/omnifocus
 bin/omnifocus_new
 lib/omnifocus.rb
+lib/omnifocus/set.rb
