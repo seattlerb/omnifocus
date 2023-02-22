@@ -704,8 +704,6 @@ class OmniFocus
 
               warn "Fixing #{p.name} to #{date.strftime "%Y-%m-%d"}"
 
-              next if skip
-
               case task.name
               when /Release/ then
                 warn "  Fixing #{p.name} release to #{date.strftime "%Y-%m-%d"}"
