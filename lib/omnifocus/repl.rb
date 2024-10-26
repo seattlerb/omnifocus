@@ -4,5 +4,6 @@ class OmniFocus
     puts "starting pry..."
     require "pry"
     binding.pry
+    p :DONE
   end
 end

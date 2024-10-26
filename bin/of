@@ -15,4 +15,4 @@ msg = tbl[cmd]
 
 abort "unknown command: #{cmd}" unless msg
 
-OmniFocus.send msg, ARGV
+OmniFocus.new.send "cmd_#{msg}", ARGV

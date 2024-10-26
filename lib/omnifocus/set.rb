@@ -1,4 +1,4 @@
-class Omnifocus
+class OmniFocus
   desc "Set the schedule for a project (incl release and triage tasks) to N weeks"
   def cmd_set args
     name, interval = args

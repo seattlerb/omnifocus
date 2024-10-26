@@ -19,58 +19,57 @@ include Appscript
 class OmniFocus
   VERSION = "2.7.1"
 
-  class << self
+  module Pluggable
     attr_accessor :description, :current_desc
-  end
 
-  self.current_desc = nil
-  self.description  = {}
+    def self.extended obj
+      obj.current_desc = nil
+      obj.description  = {}
+    end
 
-  def self.method_added name
-    return unless name =~ /^cmd_/
-    description[name] = current_desc || "UNKNOWN"
-    self.current_desc = nil
-  end
+    def method_added name
+      return unless name =~ /^cmd_/
+      description[name] = current_desc || "UNKNOWN"
+      self.current_desc = nil
+    end
 
-  def self.desc str
-    @current_desc = str
-  end
+    def desc str
+      self.current_desc = str
+    end
 
-  ##
-  # Load any file matching "omnifocus/*.rb"
+    ##
+    # Load any file matching "omnifocus/*.rb"
 
-  def self._load_plugins filter = ARGV.shift
-    @__loaded__ ||=
-      begin
-        loaded = {}
-        Gem.find_files("omnifocus/*.rb").each do |path|
-          name = File.basename path
-          next if loaded[name]
-          next unless path.index filter if filter
-          require path
-          loaded[name] = true
+    def _load_plugins filter = ARGV.shift
+      @__loaded__ ||=
+        begin
+          loaded = {}
+          Gem.find_files("omnifocus/*.rb").each do |path|
+            name = File.basename path
+            next if loaded[name]
+            next unless path.index filter if filter
+            require path
+            loaded[name] = true
+          end
+          true
         end
-        true
-      end
+    end
+
+    ##
+    # Return all the plugin modules that have been loaded.
+
+    def _plugins
+      _load_plugins
+
+      constants.
+        reject { |mod| mod =~ /^[A-Z_]+$/ }.
+        map    { |mod| const_get mod }.
+        reject { |mod| Class === mod }.
+        select { |mod| mod.const_defined? :PREFIX }
+    end
   end
 
-  ##
-  # Return all the plugin modules that have been loaded.
-
-  def self._plugins
-    _load_plugins
-
-    constants.
-      reject { |mod| mod =~ /^[A-Z_]+$/ }.
-      map    { |mod| const_get mod }.
-      reject { |mod| Class === mod }.
-      select { |mod| mod.const_defined? :PREFIX }
-  end
-
-  def self.method_missing(msg, *args) # TODO: retire, push up to bin/of
-    of = OmniFocus.new
-    of.send("cmd_#{msg}", *args)
-  end
+  extend Pluggable
 
   ##
   # bug_db = {
@@ -177,19 +176,19 @@ class OmniFocus
 
     if prefixen.all? then
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ prefix_re
+        task.name =~ prefix_re
       }
     else
       warn "WA"+"RN: Older plugins installed. Falling back to The Old Ways"
 
       of_tasks = all_tasks.find_all { |task|
-        task.name.get =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
+        task.name =~ /^([A-Z]+(?:-[\w-]+)?\#\d+)/
       }
     end
 
     of_tasks.each do |of_task|
-      ticket_id                  = of_task.name.get[prefix_re, 1]
-      project                    = of_task.containing_project.name.get
+      ticket_id                  = of_task.name[prefix_re, 1]
+      project                    = of_task.project.name
 
       if existing.key? ticket_id
         warn "Duplicate task! #{ticket_id}"
@@ -268,65 +267,6 @@ class OmniFocus
     end
   end
 
-  desc "Synchronize tasks with all known BTS plugins"
-  def cmd_sync args
-    self.debug = args.delete("-d")
-    plugins = self.class._plugins
-
-    # do this all up front so we can REALLY fuck shit up with plugins
-    plugins.each do |plugin|
-      extend plugin
-    end
-
-    prepopulate_existing_tasks
-
-    plugins.each do |plugin|
-      name = plugin.name.split(/::/).last.downcase
-      warn "scanning #{name}"
-      send "populate_#{name}_tasks"
-    end
-
-    if debug then
-      require 'pp'
-      p :existing
-      pp existing
-      p :bug_db
-      pp bug_db
-    end
-
-    create_missing_projects
-    update_tasks
-  end
-
-  desc "Create a new project or task"
-  def cmd_neww args
-    project_name = args.shift
-    title = ($stdin.tty? ? args.join(" ") : $stdin.read).strip
-
-    unless project_name && ! title.empty? then
-      cmd = File.basename $0
-      projects = self.omnifocus.flattened_projects.name.get.sort_by(&:downcase)
-
-      warn "usage: #{cmd} new project_name title        - create a project task"
-      warn "       #{cmd} new nil          title        - create an inbox task"
-      warn "       #{cmd} new project      project_name - create a new project"
-      warn ""
-      warn "project_names = #{projects.join ", "}"
-      exit 1
-    end
-
-    case project_name.downcase
-    when "nil" then
-      self.omnifocus.make :new => :inbox_task, :with_properties => {:name => title}
-    when "project" then
-      new_or_repair_project title
-    else
-      project = self.omnifocus.flattened_projects[q_named(project_name)].first.get
-      make project, :task, title
-      puts "created task in #{project_name}: #{title}"
-    end
-  end
-
   def weekly(n=1)
     {
       :unit => :week,
@@ -346,162 +286,10 @@ class OmniFocus
     midnight + (n * 3600).to_i
   end
 
-  desc "Print out all active projects"
-  def cmd_projects args
-    h = Hash.new 0
-    n = 0
-
-    self.active_nerd_projects.each do |project|
-      name  = project.name
-      count = project.flattened_tasks.count
-      ri    = project.review_interval
-      time  = "#{ri[:steps]}#{ri[:unit].to_s[0,1]}"
-
-      next unless count > 0
-
-      n += count
-      h["#{name} (#{time})"] = count
-    end
-
-    puts "%5d: %3d%%: %s" % [n, 100, "Total"]
-    puts
-    h.sort_by { |name, count| -count }.each do |name, count|
-      puts "%5d: %3d%%: %s" % [count, 100 * count / n, name]
-    end
-
-    t = Hash.new { |h,k| h[k] = [] }
-
-    self.active_nerd_projects.each do |project|
-      ri    = project.review_interval
-      time  = "#{ri[:steps]}#{ri[:unit].to_s[0,1]}"
-
-      t[time] << project.name
-    end
-
-    puts
-    t.sort.each do |k, vs|
-      wrapped = vs.sort
-        .join(" ")              # make one string
-        .scan(/.{,70}(?: |$)/)  # break into 70 char lines
-        .join("\n    ")         # wrap w/ whitespace to indent
-        .strip
-
-      puts "%s: %s" % [k, wrapped]
-      puts
-    end
-  end
-
   def top hash, n=10
     hash.sort_by { |k,v| [-v, k] }.first(n).map { |k,v|
       "%4d %s" % [v,k[0,21]]
     }
-  end
-
-  desc "Print out top 10 projects+contexts, contexts, and projects"
-  def cmd_top args
-    # available non-repeating tasks per project & context
-    h1 = Hash.new 0
-    _flattened_contexts.each do |context|
-      context_name = context.name.get
-      context.tasks[q_active_unique].get.each do |task|
-        h1[[task.containing_project.name.get, context_name].join(": ")] += 1
-      end
-    end
-
-    # available non-repeating tasks per context
-    h2 = Hash.new 0
-    _flattened_contexts.each do |context|
-      h2[context.name.get] += context.tasks[q_active_unique].count
-    end
-
-    # available non-repeating tasks per project
-    h3 = Hash.new 0
-    self.omnifocus.flattened_projects.get.each do |project|
-      h3[project.name.get] += project.flattened_tasks[q_active_unique].count
-    end
-
-    puts "%-26s%-26s%-26s" % ["#### Proj+Context", "#### Context", "#### Project"]
-    puts "-" * 26 * 3
-    top(h1).zip(top(h2), top(h3)).each do |a|
-      puts "%-26s%-26s%-26s" % a
-    end
-  end
-
-  desc "Print out versions for omnifocus and plugins"
-  def cmd_version args
-    plugins = self.class._plugins
-
-    width = plugins.map(&:name).map(&:length).max
-    fmt = "  %-#{width}s = v%s"
-
-    puts "Versions:"
-    puts
-
-    puts fmt % ["Omnifocus", VERSION]
-    plugins.each do |klass|
-      puts fmt % [klass, klass::VERSION]
-    end
-  end
-
-  desc "Print out descriptions for all known subcommands"
-  def cmd_help args
-    methods = OmniFocus.public_instance_methods(false).grep(/^cmd_/)
-    methods.map! { |s| s[4..-1] }
-    width = methods.map(&:length).max
-
-    puts "Available subcommands:"
-
-    methods.sort.each do |m|
-      desc = self.class.description["cmd_#{m}".to_sym]
-      puts "  %-#{width}s : %s." % [m, desc]
-    end
-  end
-
-  desc "Print out a schedule for a project or context"
-  def cmd_schedule args
-    name = args.shift or abort "need a context or project name"
-
-    cp = context(name) || project(name)
-
-    abort "Context/Project not found: #{name}" unless cp
-
-    print_aggregate_report cp.tasks, :long
-  end
-
-  desc "Fix review dates. Use -n to no-op"
-  def cmd_fix_review_dates args # TODO: merge into reschedule
-    skip = ARGV.first == "-n"
-
-    projs = all_projects.group_by { |proj| proj.review_interval[:steps] }
-
-    projs.each do |k, a|
-      # helps stabilize and prevent random shuffling
-      projs[k] = a.sort_by { |p| [p.next_review_date, p.name] }
-    end
-
-    now = hour 0
-    fri = if now.wday == 5 then
-            now
-          else
-            now - 86400 * (now.wday-5)
-          end
-
-    no_autosave_during do
-      projs.each do |unit, a|
-        day = fri
-
-        steps = (a.size.to_f / unit).ceil
-
-        a.each_with_index do |proj, i|
-          if proj.next_review_date != day then
-            warn "Fixing #{unit} #{proj.name} review date to #{day}"
-            proj.thing.next_review_date.set day unless skip
-          end
-
-          day += 86400 * 7 if (i+1) % steps == 0
-        end
-      end
-    end
   end
 
   def distribute count, weeks
@@ -751,46 +539,6 @@ class OmniFocus
     end
   end
 
-  desc "Reschedule reviews & releases, and fix missing tasks. -n to no-op"
-  def cmd_reschedule args
-    skip = ARGV.first == "-n"
-
-    rels, tasks, projs = aggregate_releases
-
-    no_autosave_during do
-      warn "Checking project review intervals..."
-      fix_project_review_intervals rels, skip
-
-      warn "Checking releasing task numeric prefixes (if any)"
-      fix_release_task_names projs, tasks, skip
-
-      warn "Checking releasing task schedules"
-      fix_release_task_schedule projs, tasks, skip
-
-      warn "Repairing any missing release or triage tasks"
-      fix_missing_tasks skip
-    end
-  end
-
-  desc "Calculate the amount of estimated time across all tasks. Depressing"
-  def cmd_time args
-    m = 0
-
-    all_tasks.map { |task|
-      task.estimated_minutes.get
-    }.grep(Numeric).each { |t|
-      m += t
-    }
-
-    puts "all tasks = #{m} minutes"
-    puts "          = %.2f hours" % (m / 60.0)
-  end
-
-  desc "Print out an aggregate report for all live projects"
-  def cmd_review args
-    print_aggregate_report live_projects
-  end
-
   def print_aggregate_report collection, long = false
     h, p = self.aggregate collection
 
@@ -950,7 +698,7 @@ class OmniFocus
     end
 
     def method_missing m, *a
-      warn "%s#method_missing(%s)" % [self.class.name, [m,*a].inspect[1..-2]]
+      warn "%s#method_missing(%s) from %s" % [self.class.name, [m,*a].inspect[1..-2], caller.first]
       thing.send m, *a
     end
 
